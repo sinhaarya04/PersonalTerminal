@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { computeSMA, computeEMA, computeBollinger, computeRSI } from '../utils/indicators';
+import Tooltip from './Tooltip';
 
 const RANGES = [
   { label: '1M',  days: 21 },
@@ -16,6 +17,10 @@ const INDICATOR_DEFS = [
   { key: 'BB',     label: 'BB',     color: '#aa66ff', type: 'overlay' },
   { key: 'RSI',    label: 'RSI',    color: '#ff8c00', type: 'sub' },
 ];
+
+const INDICATOR_TOOLTIP_MAP = {
+  SMA20: 'sma', SMA50: 'sma', EMA20: 'ema', BB: 'bollinger-bands', RSI: 'rsi',
+};
 
 // SVG coordinate space
 const W = 1000;
@@ -432,6 +437,7 @@ export default function PriceChart({ bars, ticker, quote, events }) {
         <span style={Styles.sep}>|</span>
         <button style={Styles.modeBtn(chartMode === 'LINE')} onClick={() => setChartMode('LINE')}>LINE</button>
         <button style={Styles.modeBtn(chartMode === 'CANDLE')} onClick={() => setChartMode('CANDLE')}>CANDLE</button>
+        <Tooltip termKey="candlestick" />
         <span style={Styles.sep}>|</span>
         {RANGES.map(r => (
           <button key={r.label} style={Styles.rangeBtn(range === r.label)} onClick={() => handleRangeChange(r.label)}>
@@ -443,22 +449,29 @@ export default function PriceChart({ bars, ticker, quote, events }) {
       {/* Indicator + Drawing toggles */}
       <div style={{ display: 'flex', gap: '4px', padding: '3px 8px', background: '#050510', borderBottom: '1px solid #111', alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ color: '#444', fontFamily: 'Consolas,monospace', fontSize: '10px', marginRight: '4px' }}>INDICATORS:</span>
-        {INDICATOR_DEFS.map(ind => (
-          <button key={ind.key} style={Styles.indBtn(activeIndicators.includes(ind.key), ind.color)} onClick={() => toggleIndicator(ind.key)}>
-            {ind.label}
-          </button>
+        {INDICATOR_DEFS.map((ind, idx) => (
+          <React.Fragment key={ind.key}>
+            <button style={Styles.indBtn(activeIndicators.includes(ind.key), ind.color)} onClick={() => toggleIndicator(ind.key)}>
+              {ind.label}
+            </button>
+            {INDICATOR_TOOLTIP_MAP[ind.key] !== INDICATOR_TOOLTIP_MAP[INDICATOR_DEFS[idx + 1]?.key] && (
+              <Tooltip termKey={INDICATOR_TOOLTIP_MAP[ind.key]} />
+            )}
+          </React.Fragment>
         ))}
         <span style={{ color: '#333', margin: '0 4px' }}>|</span>
         <span style={{ color: '#444', fontFamily: 'Consolas,monospace', fontSize: '10px', marginRight: '4px' }}>DRAW:</span>
         <button style={Styles.indBtn(drawMode === 'trendline', '#ffcc00')} onClick={() => { setDrawMode(drawMode === 'trendline' ? null : 'trendline'); setPendingDraw(null); setSelectedDrawing(null); }}>
           TREND
         </button>
+        <Tooltip termKey="trendline" />
         <button style={Styles.indBtn(drawMode === 'hline', '#ffcc00')} onClick={() => { setDrawMode(drawMode === 'hline' ? null : 'hline'); setPendingDraw(null); setSelectedDrawing(null); }}>
           HLINE
         </button>
         <button style={Styles.indBtn(drawMode === 'fib', '#00cccc')} onClick={() => { setDrawMode(drawMode === 'fib' ? null : 'fib'); setPendingDraw(null); setSelectedDrawing(null); }}>
           FIB
         </button>
+        <Tooltip termKey="fibonacci" />
         {drawings.length > 0 && (
           <button style={{ ...Styles.indBtn(false, '#ff4444'), color: '#ff4444', borderColor: '#ff4444' }} onClick={() => { setDrawings([]); setSelectedDrawing(null); }}>
             CLEAR

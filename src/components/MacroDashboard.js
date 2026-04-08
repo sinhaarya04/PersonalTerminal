@@ -8,6 +8,14 @@ import {
 } from '../hooks/useFred';
 import { useExport } from '../context/ExportContext';
 import { exportCSV } from '../utils/csvExport';
+import Tooltip from './Tooltip';
+
+const MACRO_TOOLTIP_MAP = {
+  GDP: 'gdp', GDPC1: 'gdp', CPIAUCSL: 'cpi', CPILFESL: 'cpi',
+  UNRATE: 'unemployment-rate', PAYEMS: 'nonfarm-payrolls', ICSA: 'initial-claims',
+  DFF: 'fed-funds-rate', DGS10: 'yield-curve', DGS2: 'yield-curve',
+  RSXFS: 'retail-sales', UMCSENT: 'consumer-sentiment',
+};
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 const S = {
@@ -337,7 +345,7 @@ function MacroRow({ meta, observations }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <span style={S.label}>{meta.label}</span>
+      <span style={S.label}>{meta.label}{MACRO_TOOLTIP_MAP[meta.id] && <Tooltip termKey={MACRO_TOOLTIP_MAP[meta.id]} />}</span>
       <span style={S.value}>{latestValue}</span>
       <span style={S.change(direction)}>{changeStr || '--'}</span>
       <span style={S.arrow(direction)}>{arrow}</span>
@@ -558,9 +566,11 @@ export default function MacroDashboard({ fredKey, onSetFredKey }) {
         <div style={S.ycSection}>
           <div style={S.ycTitle}>
             US TREASURY YIELD CURVE
+            <Tooltip termKey="yield-curve" />
             <span style={S.ycBadge(curveInverted)}>
               {curveInverted ? '● INVERTED' : '● NORMAL'}
             </span>
+            {curveInverted && <Tooltip termKey="yield-curve-inversion" />}
             {yieldCurve[0]?.date && (
               <span style={{ color: '#444', fontSize: '10px' }}>
                 AS OF {yieldCurve[0].date}

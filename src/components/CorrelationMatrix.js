@@ -3,6 +3,7 @@ import { getDefaultPeers } from '../data/peerMap';
 import { fetchYFChart } from '../hooks/useYahooFinance';
 import { useExport } from '../context/ExportContext';
 import { exportCSV } from '../utils/csvExport';
+import Tooltip from './Tooltip';
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
 
@@ -575,6 +576,7 @@ export default function CorrelationMatrix({ ticker, allBars }) {
       <div style={S.header}>
         <span style={S.headerTitle}>
           {activeTicker} — KPI CORRELATION MATRIX
+          <Tooltip termKey="pearson-correlation" />
         </span>
         <span style={S.headerSub}>
           {loading
@@ -712,6 +714,7 @@ export default function CorrelationMatrix({ ticker, allBars }) {
             <span style={S.chartTitle}>
               ROLLING {rollingWindow}-DAY CORRELATION:
               {' '}{selectedPair.rowTicker} vs {selectedPair.colTicker}
+              <Tooltip termKey="log-returns" />
             </span>
             <span style={{ color: '#888888', fontFamily: MONO, fontSize: '11px' }}>
               {(() => {

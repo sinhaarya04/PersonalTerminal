@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { formatChange, getCellStyle } from '../utils/formatting';
+import Tooltip from './Tooltip';
 
 const S = {
   container: { display: 'flex', background: '#000000', gap: '0' },
@@ -206,19 +207,19 @@ export default function AltDataTable({ data, quote, ticker, dataSource }) {
             <span style={{ ...S.qValue(null), color: '#ff4444' }}>{q.low.toFixed(2)}</span>
           </div>
           <div>
-            <span style={S.qLabel}>VOLUME</span>
+            <span style={S.qLabel}>VOLUME<Tooltip termKey="volume" /></span>
             <span style={S.qValue(null)}>{(q.volume / 1e6).toFixed(2)}M</span>
           </div>
           <div>
-            <span style={S.qLabel}>MKT CAP</span>
+            <span style={S.qLabel}>MKT CAP<Tooltip termKey="market-cap" /></span>
             <span style={S.qValue(null)}>{(q.mktCap / 1e9).toFixed(1)}B</span>
           </div>
           <div>
-            <span style={S.qLabel}>P/E</span>
+            <span style={S.qLabel}>P/E<Tooltip termKey="pe-ratio" /></span>
             <span style={S.qValue(null)}>{q.pe.toFixed(1)}</span>
           </div>
           <div>
-            <span style={S.qLabel}>52W H/L</span>
+            <span style={S.qLabel}>52W H/L<Tooltip termKey="52-week-high-low" /></span>
             <span style={S.qValue(null)}>{q.week52High.toFixed(0)} / {q.week52Low.toFixed(0)}</span>
           </div>
         </div>
@@ -331,14 +332,14 @@ export default function AltDataTable({ data, quote, ticker, dataSource }) {
         <div style={S.sbSection}>
           <div style={S.sbTitle}>FUNDAMENTALS</div>
           {[
-            ['EPS', `$${q.eps}`],
-            ['P/E RATIO', q.pe.toFixed(1)],
-            ['AVG VOL', `${(q.avgVolume / 1e6).toFixed(2)}M`],
-            ['52W HIGH', `$${q.week52High}`],
-            ['52W LOW', `$${q.week52Low}`],
-          ].map(([lbl, val]) => (
+            ['EPS', `$${q.eps}`, 'eps'],
+            ['P/E RATIO', q.pe.toFixed(1), 'pe-ratio'],
+            ['AVG VOL', `${(q.avgVolume / 1e6).toFixed(2)}M`, 'volume'],
+            ['52W HIGH', `$${q.week52High}`, '52-week-high-low'],
+            ['52W LOW', `$${q.week52Low}`, '52-week-high-low'],
+          ].map(([lbl, val, tipKey]) => (
             <div key={lbl} style={S.sbRow}>
-              <span style={S.sbLabel}>{lbl}</span>
+              <span style={S.sbLabel}>{lbl}{tipKey && <Tooltip termKey={tipKey} />}</span>
               <span style={S.sbVal}>{val}</span>
             </div>
           ))}
