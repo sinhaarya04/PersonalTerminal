@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/yf/:path*", "destination": "/api/yf/:path*" },
+    { "source": "/gnews/:path*", "destination": "/api/gnews/:path*" },
+    { "source": "/arxiv/:path*", "destination": "/api/arxiv/:path*" },
+    { "source": "/semscholar/:path*", "destination": "/api/semscholar/:path*" },
+    { "source": "/fred/:path*", "destination": "/api/fred/:path*" },
+    { "source": "/rssproxy", "destination": "/api/rssproxy" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
