@@ -330,3 +330,89 @@ export async function fetchGoogleNews(query, count = 10) {
   yfCacheSet(cacheKey, normalized, 3 * 60 * 1000);
   return normalized;
 }
+
+// ── Stock Screener — broad universe from predefined screeners ───────────────
+export async function fetchScreenerUniverse() {
+  const cacheKey = 'screener_universe';
+  const cached = yfCacheGet(cacheKey);
+  if (cached) return cached;
+
+  const screenerIds = [
+    'most_actives',
+    'day_gainers',
+    'day_losers',
+    'undervalued_growth_stocks',
+    'aggressive_small_caps',
+    'growth_technology_stocks',
+    'undervalued_large_caps',
+    'small_cap_gainers',
+  ];
+
+  const results = await Promise.allSettled(
+    screenerIds.map(scrId =>
+      yfFetch('/v1/finance/screener/predefined/saved', { scrIds: scrId, count: 250 })
+    )
+  );
+
+  const pool = {};
+  results.forEach(r => {
+    if (r.status !== 'fulfilled') return;
+    const quotes = r.value?.finance?.result?.[0]?.quotes || [];
+    quotes.forEach(q => {
+      if (!q.symbol || pool[q.symbol]) return;
+      pool[q.symbol] = {
+        symbol: q.symbol,
+        name: q.shortName || q.longName || q.symbol,
+        price: q.regularMarketPrice ?? null,
+        changePct: q.regularMarketChangePercent ?? null,
+        pe: q.trailingPE ?? q.forwardPE ?? null,
+        marketCap: q.marketCap ?? null,
+        volume: q.regularMarketVolume ?? null,
+        avgVolume: q.averageDailyVolume3Month ?? null,
+        week52High: q.fiftyTwoWeekHigh ?? null,
+        week52Low: q.fiftyTwoWeekLow ?? null,
+        sector: q.sector ?? null,
+        exchange: q.exchange ?? null,
+      };
+    });
+  });
+
+  const universe = Object.values(pool);
+  if (universe.length > 0) yfCacheSet(cacheKey, universe, 5 * 60 * 1000);
+  return universe;
+}
+
+// ── RSI batch — lazy fetch for screener RSI filter ──────────────────────────
+export async function fetchRSIBatch(symbols, period = 14) {
+  const results = await Promise.allSettled(
+    symbols.slice(0, 50).map(async sym => {
+      const data = await yfFetch(`/v8/finance/chart/${encodeURIComponent(sym)}`, {
+        interval: '1d', range: '1mo', includePrePost: 'false',
+      });
+      const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(c => c != null);
+      if (!closes || closes.length < period + 1) return { symbol: sym, rsi: null };
+
+      const gains = [], losses = [];
+      for (let i = 1; i < closes.length; i++) {
+        const diff = closes[i] - closes[i - 1];
+        gains.push(diff > 0 ? diff : 0);
+        losses.push(diff < 0 ? -diff : 0);
+      }
+      let avgGain = gains.slice(0, period).reduce((s, x) => s + x, 0) / period;
+      let avgLoss = losses.slice(0, period).reduce((s, x) => s + x, 0) / period;
+      for (let i = period; i < gains.length; i++) {
+        avgGain = (avgGain * (period - 1) + gains[i]) / period;
+        avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
+      }
+      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      const rsi = 100 - (100 / (1 + rs));
+      return { symbol: sym, rsi: Math.round(rsi * 100) / 100 };
+    })
+  );
+
+  const rsiMap = {};
+  results.forEach(r => {
+    if (r.status === 'fulfilled' && r.value) rsiMap[r.value.symbol] = r.value.rsi;
+  });
+  return rsiMap;
+}

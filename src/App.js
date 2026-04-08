@@ -27,6 +27,10 @@ import { getDefaultPeers } from './data/peerMap';
 import { MACRO_EVENTS } from './data/macroEvents';
 import { useExport } from './context/ExportContext';
 import { exportCSV } from './utils/csvExport';
+import { TradingProvider } from './context/TradingContext';
+import PaperTrading from './components/PaperTrading';
+import GlossaryPanel from './components/GlossaryPanel';
+import StockScreener from './components/StockScreener';
 
 const S = {
   app: {
@@ -519,6 +523,9 @@ export default function App() {
     if (activeTab === 'NEWS')           return <NewsWire polygonKey={polygonKey} ticker={ticker} />;
     if (activeTab === 'RESEARCH')       return <ResearchReading />;
     if (activeTab === 'PROJECTS')       return <ProjectIdeas />;
+    if (activeTab === 'SCREENER')       return <StockScreener onTickerChange={handleTickerChange} />;
+    if (activeTab === 'PAPER TRADE')    return <PaperTrading ticker={ticker} quoteData={quoteData} onTickerChange={handleTickerChange} />;
+    if (activeTab === 'GLOSSARY')       return <GlossaryPanel />;
 
     return <WorldEquityIndices />;
   };
@@ -537,6 +544,7 @@ export default function App() {
     : '#555555';
 
   return (
+    <TradingProvider>
     <div style={S.app}>
       <TopBanner
         ticker={ticker}
@@ -614,5 +622,6 @@ export default function App() {
         </span>
       </div>
     </div>
+    </TradingProvider>
   );
 }
