@@ -2,8 +2,6 @@ const https = require('https');
 
 const TARGET = 'https://query2.finance.yahoo.com';
 
-// Yahoo blocks datacenter IPs without a valid session cookie + crumb.
-// Flow: fc.yahoo.com → cookies → /v1/test/getcrumb → crumb
 let cachedCookie = '';
 let cachedCrumb = '';
 let cacheExpiry = 0;
@@ -19,7 +17,7 @@ function httpsGet(url, headers = {}) {
       res.on('end', () => resolve({ status: res.statusCode, cookies, body, headers: res.headers }));
     });
     req.on('error', reject);
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
   });
 }
 
@@ -31,19 +29,16 @@ async function getAuth() {
   const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
   try {
-    // Step 1: Get cookies from fc.yahoo.com (always 404s but sets cookies)
     const cookieRes = await httpsGet('https://fc.yahoo.com', { 'User-Agent': ua });
     let cookie = cookieRes.cookies;
 
     if (!cookie) {
-      // Fallback: try finance.yahoo.com
       const fallbackRes = await httpsGet('https://finance.yahoo.com/', { 'User-Agent': ua });
       cookie = fallbackRes.cookies;
     }
 
     if (!cookie) return { cookie: '', crumb: '' };
 
-    // Step 2: Get crumb using the cookies
     const crumbRes = await httpsGet('https://query2.finance.yahoo.com/v1/test/getcrumb', {
       'User-Agent': ua,
       'Cookie': cookie,
@@ -62,18 +57,14 @@ async function getAuth() {
 }
 
 module.exports = async function handler(req, res) {
-  const pathSegments = req.query.path || [];
-  const targetPath = '/' + (Array.isArray(pathSegments) ? pathSegments.join('/') : pathSegments);
+  // Path comes as ?path=/v8/finance/chart/SPY&interval=1d&range=1d
+  const targetPath = req.query.path || '/';
 
   const params = { ...req.query };
   delete params.path;
 
   const { cookie, crumb } = await getAuth();
-
-  // Add crumb to query if we have one and it's not already there
-  if (crumb && !params.crumb) {
-    params.crumb = crumb;
-  }
+  if (crumb && !params.crumb) params.crumb = crumb;
 
   const qs = new URLSearchParams(params).toString();
   const url = `${TARGET}${targetPath}${qs ? '?' + qs : ''}`;
@@ -86,7 +77,6 @@ module.exports = async function handler(req, res) {
     });
 
     const contentType = response.headers['content-type'] || 'application/json';
-
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     res.status(response.status).send(response.body);
