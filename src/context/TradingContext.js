@@ -2,7 +2,6 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback } 
 
 const TradingContext = createContext(null);
 
-const STORAGE_KEY = 'paper_trading_v1';
 const INITIAL_CASH = 100000;
 
 const INITIAL_STATE = {
@@ -14,9 +13,18 @@ const INITIAL_STATE = {
   portfolioHistory: [],
 };
 
-function loadState() {
+function storageKey(email) {
+  return email ? `paper_trading_v1_${email.toLowerCase().trim()}` : 'paper_trading_v1';
+}
+
+function loadState(key) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    let raw = localStorage.getItem(key);
+    // Migrate: if per-user key is empty but legacy key exists, copy it over
+    if (!raw && key !== 'paper_trading_v1') {
+      raw = localStorage.getItem('paper_trading_v1');
+      if (raw) localStorage.setItem(key, raw);
+    }
     if (!raw) return INITIAL_STATE;
     const parsed = JSON.parse(raw);
     if (parsed.version !== 1) return INITIAL_STATE;
@@ -26,9 +34,9 @@ function loadState() {
   }
 }
 
-function saveState(state) {
+function saveState(key, state) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(key, JSON.stringify(state));
   } catch { /* ignore quota errors */ }
 }
 
@@ -134,11 +142,12 @@ function reducer(state, action) {
   }
 }
 
-export function TradingProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, null, loadState);
+export function TradingProvider({ userEmail, children }) {
+  const key = storageKey(userEmail);
+  const [state, dispatch] = useReducer(reducer, key, loadState);
 
   // Persist on every state change
-  useEffect(() => { saveState(state); }, [state]);
+  useEffect(() => { saveState(key, state); }, [key, state]);
 
   const executeBuy = useCallback((symbol, shares, price) => {
     const total = shares * price;

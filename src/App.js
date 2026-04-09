@@ -31,6 +31,10 @@ import { TradingProvider } from './context/TradingContext';
 import PaperTrading from './components/PaperTrading';
 import GlossaryPanel from './components/GlossaryPanel';
 import StockScreener from './components/StockScreener';
+import { useAuth } from './context/AuthContext';
+import SignInPage from './components/SignInPage';
+import FullscreenChart from './components/FullscreenChart';
+import { useSavedChart } from './hooks/useChartStorage';
 
 const S = {
   app: {
@@ -208,6 +212,13 @@ function buildQuote(sym, yfQuote, bars) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { user } = useAuth();
+  if (!user) return <SignInPage />;
+  return <AppMain user={user} />;
+}
+
+function AppMain({ user }) {
+  const { signOut } = useAuth();
   const [polygonKey, setPolygonKey] = useState(
     process.env.REACT_APP_POLYGON_API_KEY || localStorage.getItem('poly_api_key') || ''
   );
@@ -221,6 +232,15 @@ export default function App() {
   const [activeTab, setActiveTab]   = useState('OVERVIEW');
   const [ticker, setTicker]         = useState('SPY');
   const [isRateLimited, setIsRateLimited] = useState(false);
+  const [showFullscreen, setShowFullscreen] = useState(false);
+  const [liveDrawings, setLiveDrawings] = useState([]);
+  const [showSaved, setShowSaved] = useState(true);
+
+  const { savedChart, saveChart, deleteSavedChart } = useSavedChart(user.email, ticker);
+
+  const handleSaveChart = useCallback((drawings, indicators, chartMode, range) => {
+    saveChart(drawings, indicators, chartMode, range);
+  }, [saveChart]);
 
   const [altData, setAltData]       = useState(null);
   const [quoteData, setQuoteData]   = useState(null);
@@ -492,7 +512,75 @@ export default function App() {
       }
       return (
         <div>
-          <PriceChart bars={chartBars} ticker={ticker} quote={quoteData} events={MACRO_EVENTS} />
+          {savedChart && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '4px 8px', background: '#0a0a14', borderBottom: '1px solid #222',
+            }}>
+              <span style={{ color: '#ff8c00', fontFamily: 'Consolas,monospace', fontSize: '11px' }}>
+                SAVED CHART — {new Date(savedChart.savedAt).toLocaleDateString()}
+              </span>
+              <button
+                onClick={() => setShowSaved(v => !v)}
+                style={{
+                  background: showSaved ? '#1a1a2e' : 'transparent',
+                  color: showSaved ? '#ff8c00' : '#555',
+                  border: `1px solid ${showSaved ? '#ff8c00' : '#333'}`,
+                  fontFamily: 'Consolas,monospace', fontSize: '10px',
+                  padding: '1px 8px', cursor: 'pointer',
+                }}
+              >
+                {showSaved ? 'HIDE SAVED' : 'SHOW SAVED'}
+              </button>
+              <button
+                onClick={deleteSavedChart}
+                style={{
+                  background: 'transparent', color: '#ff4444',
+                  border: '1px solid #ff4444',
+                  fontFamily: 'Consolas,monospace', fontSize: '10px',
+                  padding: '1px 8px', cursor: 'pointer',
+                }}
+              >
+                DELETE SAVED
+              </button>
+            </div>
+          )}
+          {savedChart && showSaved ? (
+            <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #333' }}>
+              <div style={{ flex: 1, minWidth: 0, borderRight: '1px solid #333' }}>
+                <PriceChart
+                  bars={chartBars}
+                  ticker={ticker}
+                  quote={quoteData}
+                  events={MACRO_EVENTS}
+                  initialDrawings={savedChart.drawings}
+                  label="SAVED"
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <PriceChart
+                  bars={chartBars}
+                  ticker={ticker}
+                  quote={quoteData}
+                  events={MACRO_EVENTS}
+                  onDrawingsChange={setLiveDrawings}
+                  onSave={handleSaveChart}
+                  onToggleFullscreen={() => setShowFullscreen(true)}
+                  label="LIVE"
+                />
+              </div>
+            </div>
+          ) : (
+            <PriceChart
+              bars={chartBars}
+              ticker={ticker}
+              quote={quoteData}
+              events={MACRO_EVENTS}
+              onDrawingsChange={setLiveDrawings}
+              onSave={handleSaveChart}
+              onToggleFullscreen={() => setShowFullscreen(true)}
+            />
+          )}
           <AltDataTable
             data={altData}
             quote={quoteData}
@@ -544,7 +632,7 @@ export default function App() {
     : '#555555';
 
   return (
-    <TradingProvider>
+    <TradingProvider userEmail={user.email}>
     <div style={S.app}>
       <TopBanner
         ticker={ticker}
@@ -618,9 +706,28 @@ export default function App() {
           <span style={{ ...S.statusItem, color: '#ff8c00' }}>⚠ RATE LIMITED — CACHED DATA</span>
         )}
         <span style={{ ...S.statusItem, marginLeft: 'auto' }}>
-          ARYAN SINHA · NEU · CLASS OF 2027
+          {user.email.toUpperCase()} · {user.university.toUpperCase()}
+        </span>
+        <span
+          onClick={signOut}
+          style={{ ...S.statusItem, color: '#ff8c00', cursor: 'pointer', marginLeft: '4px' }}
+        >
+          SIGN OUT
         </span>
       </div>
+
+      {/* Fullscreen chart overlay */}
+      {showFullscreen && (
+        <FullscreenChart
+          bars={chartBars}
+          ticker={ticker}
+          quote={quoteData}
+          events={MACRO_EVENTS}
+          initialDrawings={liveDrawings}
+          onSave={handleSaveChart}
+          onClose={() => setShowFullscreen(false)}
+        />
+      )}
     </div>
     </TradingProvider>
   );

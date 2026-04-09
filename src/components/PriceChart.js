@@ -73,7 +73,7 @@ function buildLine(values, xOf, yScale) {
   return segments;
 }
 
-export default function PriceChart({ bars, ticker, quote, events }) {
+export default function PriceChart({ bars, ticker, quote, events, fullscreen, initialDrawings, onDrawingsChange, onSave, onToggleFullscreen, label }) {
   const [range, setRange] = useState('1Y');
   const [chartMode, setChartMode] = useState('CANDLE');
   const [activeIndicators, setActiveIndicators] = useState([]);
@@ -82,17 +82,36 @@ export default function PriceChart({ bars, ticker, quote, events }) {
   const [zoomSlice, setZoomSlice] = useState(null);
   const [dragStartIdx, setDragStartIdx] = useState(null);
   const [dragCurrentIdx, setDragCurrentIdx] = useState(null);
-  const [drawings, setDrawings] = useState([]);
+  const [drawings, setDrawings] = useState(initialDrawings || []);
   const [drawMode, setDrawMode] = useState(null); // null | 'trendline' | 'hline' | 'fib'
   const [pendingDraw, setPendingDraw] = useState(null);
   const [selectedDrawing, setSelectedDrawing] = useState(null);
   const [mousePos, setMousePos] = useState(null); // SVG coords for rubber-band preview
+  const [saveFlash, setSaveFlash] = useState(false);
   const svgRef = useRef(null);
   const isDragging = useRef(false);
   const priceInfoRef = useRef({ minPrice: 0, priceRange: 1 });
 
+  // Sync initialDrawings when they change externally
+  useEffect(() => {
+    if (initialDrawings) setDrawings(initialDrawings);
+  }, [initialDrawings]);
+
+  // Notify parent when drawings change
+  useEffect(() => {
+    if (onDrawingsChange) onDrawingsChange(drawings);
+  }, [drawings, onDrawingsChange]);
+
   const showRSI = activeIndicators.includes('RSI');
-  const svgH = showRSI ? 420 : 340;
+  const svgH = fullscreen ? (showRSI ? 840 : 680) : (showRSI ? 420 : 340);
+
+  const handleSave = useCallback(() => {
+    if (onSave) {
+      onSave(drawings, activeIndicators, chartMode, range);
+      setSaveFlash(true);
+      setTimeout(() => setSaveFlash(false), 1500);
+    }
+  }, [onSave, drawings, activeIndicators, chartMode, range]);
 
   const toggleIndicator = useCallback((key) => {
     setActiveIndicators(prev =>
@@ -417,7 +436,7 @@ export default function PriceChart({ bars, ticker, quote, events }) {
   return (
     <div style={Styles.wrap}>
       <div style={Styles.toolbar}>
-        <span style={Styles.title}>PRICE CHART — {ticker}</span>
+        <span style={Styles.title}>{label ? `${label} — ` : ''}PRICE CHART — {ticker}</span>
         {hoverBar ? (
           <span style={{ fontFamily: 'Consolas,monospace', fontSize: '12px', color: '#b0b0b0', marginRight: '8px' }}>
             <span style={{ color: '#ffcc00' }}>{formatFullDate(hoverBar.t)}</span>
@@ -444,6 +463,25 @@ export default function PriceChart({ bars, ticker, quote, events }) {
             {r.label}
           </button>
         ))}
+        {onSave && (
+          <>
+            <span style={Styles.sep}>|</span>
+            <button
+              style={{ ...Styles.modeBtn(false), color: saveFlash ? '#00cc00' : '#ff8c00', borderColor: saveFlash ? '#00cc00' : '#ff8c00' }}
+              onClick={handleSave}
+            >
+              {saveFlash ? 'SAVED' : 'SAVE'}
+            </button>
+          </>
+        )}
+        {onToggleFullscreen && (
+          <button
+            style={{ ...Styles.modeBtn(fullscreen), marginLeft: onSave ? '0' : 'auto' }}
+            onClick={onToggleFullscreen}
+          >
+            {fullscreen ? 'EXIT' : 'FULLSCREEN'}
+          </button>
+        )}
       </div>
 
       {/* Indicator + Drawing toggles */}
