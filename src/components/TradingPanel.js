@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { track } from '../lib/analytics';
 
 const S = {
   container: {
@@ -169,6 +170,7 @@ export default function TradingPanel({ ticker, price, cash, position, onBuy, onS
     if (!canBuy) return;
     const result = onBuy(ticker, numShares, price);
     if (result.success) {
+      track('paper_trade', { action: 'buy', ticker, shares: numShares, price, total });
       setMsg({ text: `BOUGHT ${numShares} ${ticker} @ $${fmt(price)}`, type: 'success' });
       setShares('');
     } else {
@@ -180,6 +182,7 @@ export default function TradingPanel({ ticker, price, cash, position, onBuy, onS
     if (!canSell) return;
     const result = onSell(ticker, numShares, price);
     if (result.success) {
+      track('paper_trade', { action: 'sell', ticker, shares: numShares, price, total });
       setMsg({ text: `SOLD ${numShares} ${ticker} @ $${fmt(price)}`, type: 'success' });
       setShares('');
     } else {

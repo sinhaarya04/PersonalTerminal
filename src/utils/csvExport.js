@@ -34,5 +34,11 @@ export function downloadCSV(csvString, filename) {
 
 export function exportCSV(rows, filename, headers) {
   const csv = arrayToCSV(rows, headers);
-  if (csv) downloadCSV(csv, filename);
+  if (csv) {
+    // Lazy-import analytics to avoid circular deps
+    import('../lib/analytics').then(({ track }) => {
+      track('csv_export', { filename, rows: rows.length });
+    }).catch(() => {});
+    downloadCSV(csv, filename);
+  }
 }

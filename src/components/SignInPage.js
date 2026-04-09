@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { track } from '../lib/analytics';
 
 const S = {
   wrapper: {
@@ -97,6 +98,7 @@ export default function SignInPage() {
       setError('INVALID EMAIL ADDRESS');
       return;
     }
+    track('sign_in', { university: university.trim() }, email.trim().toLowerCase());
     signIn(email, university);
   }
 
