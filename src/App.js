@@ -35,6 +35,7 @@ import { useAuth } from './context/AuthContext';
 import SignInPage from './components/SignInPage';
 import FullscreenChart from './components/FullscreenChart';
 import { useSavedChart } from './hooks/useChartStorage';
+import { track } from './lib/analytics';
 
 const S = {
   app: {
@@ -276,17 +277,19 @@ function AppMain({ user }) {
 
   const fetchAllQuotesRef = useRef(null);
   const handleAddToWatchlist = useCallback((sym) => {
+    track('watchlist_add', { ticker: sym }, user.email);
     setWatchlist(prev => {
       if (prev.some(w => w.symbol === sym)) return prev;
       return [...prev, { symbol: sym }];
     });
     // Fetch quotes immediately so the new ticker doesn't sit blank
     setTimeout(() => fetchAllQuotesRef.current?.(), 200);
-  }, []);
+  }, [user.email]);
 
   const handleRemoveFromWatchlist = useCallback((sym) => {
+    track('watchlist_remove', { ticker: sym }, user.email);
     setWatchlist(prev => prev.filter(w => w.symbol !== sym));
-  }, []);
+  }, [user.email]);
 
   useEffect(() => { setRateLimitCallback(setIsRateLimited); }, []);
 
@@ -419,18 +422,27 @@ function AppMain({ user }) {
   }, [polygonKey]);
 
   const handleTickerChange = useCallback((sym) => {
+    track('ticker_search', { ticker: sym, from: ticker }, user.email);
     setTicker(sym);
     setActiveTab('INFLECTION');
     fetchTickerData(sym);
-  }, [fetchTickerData]);
+  }, [fetchTickerData, ticker, user.email]);
+
+  const handleTabChange = useCallback((tab) => {
+    track('tab_change', { tab, from: activeTab }, user.email);
+    setActiveTab(tab);
+  }, [activeTab, user.email]);
 
   const handleSetFredKey = useCallback((k) => {
     setFredKey(k);
     localStorage.setItem('fred_api_key', k);
   }, []);
 
-  // Fetch initial ticker on mount
-  useEffect(() => { fetchTickerData('SPY'); }, []); // eslint-disable-line
+  // Track session start and fetch initial ticker on mount
+  useEffect(() => {
+    track('session_start', { university: user.university }, user.email);
+    fetchTickerData('SPY');
+  }, []); // eslint-disable-line
 
   // ── Fetch watchlist + main ticker quotes ──────────────────────────────────
   const tickerForPoll = useRef(ticker);
@@ -565,7 +577,7 @@ function AppMain({ user }) {
                   events={MACRO_EVENTS}
                   onDrawingsChange={setLiveDrawings}
                   onSave={handleSaveChart}
-                  onToggleFullscreen={() => setShowFullscreen(true)}
+                  onToggleFullscreen={() => { track('fullscreen_chart', { ticker }, user.email); setShowFullscreen(true); }}
                   label="LIVE"
                 />
               </div>
@@ -578,7 +590,7 @@ function AppMain({ user }) {
               events={MACRO_EVENTS}
               onDrawingsChange={setLiveDrawings}
               onSave={handleSaveChart}
-              onToggleFullscreen={() => setShowFullscreen(true)}
+              onToggleFullscreen={() => { track('fullscreen_chart', { ticker }, user.email); setShowFullscreen(true); }}
             />
           )}
           <AltDataTable
@@ -637,7 +649,7 @@ function AppMain({ user }) {
       <TopBanner
         ticker={ticker}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         onTickerChange={handleTickerChange}
         apiKey={polygonKey}
         isRateLimited={isRateLimited}
