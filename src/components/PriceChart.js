@@ -388,7 +388,7 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
   }
 
   const Styles = {
-    wrap: { background: '#000', borderBottom: '1px solid #333' },
+    wrap: { background: '#000', borderBottom: '1px solid #333', ...(fullscreen ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : {}) },
     toolbar: {
       display: 'flex', alignItems: 'center', gap: '6px',
       padding: '4px 8px', background: '#0d0d1a', borderBottom: '1px solid #333',
@@ -525,7 +525,7 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${svgH}`}
-        style={{ width: '100%', height: `${svgH}px`, display: 'block', cursor: drawMode ? 'cell' : 'crosshair', userSelect: 'none' }}
+        style={{ width: '100%', height: fullscreen ? undefined : `${svgH}px`, flex: fullscreen ? 1 : undefined, display: 'block', cursor: drawMode ? 'cell' : 'crosshair', userSelect: 'none' }}
         preserveAspectRatio="none"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
