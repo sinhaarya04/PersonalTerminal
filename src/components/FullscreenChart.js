@@ -21,16 +21,18 @@ export default function FullscreenChart({ bars, ticker, quote, events, initialDr
 
   return (
     <div style={S.overlay}>
-      <PriceChart
-        bars={bars}
-        ticker={ticker}
-        quote={quote}
-        events={events}
-        fullscreen
-        initialDrawings={initialDrawings}
-        onSave={onSave}
-        onToggleFullscreen={onClose}
-      />
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <PriceChart
+          bars={bars}
+          ticker={ticker}
+          quote={quote}
+          events={events}
+          fullscreen
+          initialDrawings={initialDrawings}
+          onSave={onSave}
+          onToggleFullscreen={onClose}
+        />
+      </div>
     </div>
   );
 }
