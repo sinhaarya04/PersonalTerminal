@@ -6,7 +6,7 @@ const AUTH_KEY = 'bloomberg_auth_user';
 
 function loadUser() {
   try {
-    const raw = localStorage.getItem(AUTH_KEY);
+    const raw = sessionStorage.getItem(AUTH_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -19,12 +19,12 @@ export function AuthProvider({ children }) {
 
   const signIn = useCallback((email, university) => {
     const u = { email: email.trim().toLowerCase(), university: university.trim() };
-    localStorage.setItem(AUTH_KEY, JSON.stringify(u));
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify(u));
     setUser(u);
   }, []);
 
   const signOut = useCallback(() => {
-    localStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(AUTH_KEY);
     setUser(null);
   }, []);
 

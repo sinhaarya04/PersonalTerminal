@@ -14,6 +14,7 @@ export function useSavedChart(email, ticker) {
     let cancelled = false;
 
     (async () => {
+      const lsKey = `saved_chart_v1_${email.toLowerCase().trim()}_${ticker.toUpperCase()}`;
       try {
         const res = await fetch(`/api/charts?user_id=${encodeURIComponent(email)}&ticker=${encodeURIComponent(ticker)}`);
         if (!res.ok) throw new Error('API error');
@@ -29,14 +30,19 @@ export function useSavedChart(email, ticker) {
             savedAt: new Date(c.saved_at).getTime(),
           });
         } else {
-          setSavedChart(null);
+          // Supabase empty — check localStorage for migration
+          try {
+            const raw = localStorage.getItem(lsKey);
+            setSavedChart(raw ? JSON.parse(raw) : null);
+          } catch {
+            setSavedChart(null);
+          }
         }
-      } catch {
-        // Fallback to localStorage
+      } catch (err) {
+        console.warn('[charts] API load failed, using localStorage:', err);
         if (cancelled) return;
         try {
-          const key = `saved_chart_v1_${email.toLowerCase().trim()}_${ticker.toUpperCase()}`;
-          const raw = localStorage.getItem(key);
+          const raw = localStorage.getItem(lsKey);
           setSavedChart(raw ? JSON.parse(raw) : null);
         } catch {
           setSavedChart(null);
@@ -65,9 +71,12 @@ export function useSavedChart(email, ticker) {
           range,
         }),
       });
-      if (!res.ok) throw new Error('API error');
-    } catch {
-      // Fallback: save to localStorage
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`API ${res.status}: ${text}`);
+      }
+    } catch (err) {
+      console.warn('[charts] API save failed, using localStorage:', err);
       try {
         const key = `saved_chart_v1_${email.toLowerCase().trim()}_${ticker.toUpperCase()}`;
         localStorage.setItem(key, JSON.stringify(data));
