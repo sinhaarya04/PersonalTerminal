@@ -566,6 +566,8 @@ function AppMain({ user }) {
                   quote={quoteData}
                   events={MACRO_EVENTS}
                   initialDrawings={savedChart.drawings}
+                  initialRange={savedChart.range}
+                  initialChartMode={savedChart.chartMode}
                   label="SAVED"
                 />
               </div>

@@ -73,9 +73,9 @@ function buildLine(values, xOf, yScale) {
   return segments;
 }
 
-export default function PriceChart({ bars, ticker, quote, events, fullscreen, initialDrawings, onDrawingsChange, onSave, onToggleFullscreen, label }) {
-  const [range, setRange] = useState('1Y');
-  const [chartMode, setChartMode] = useState('CANDLE');
+export default function PriceChart({ bars, ticker, quote, events, fullscreen, initialDrawings, initialRange, initialChartMode, onDrawingsChange, onSave, onToggleFullscreen, label }) {
+  const [range, setRange] = useState(initialRange || '1Y');
+  const [chartMode, setChartMode] = useState(initialChartMode || 'CANDLE');
   const [activeIndicators, setActiveIndicators] = useState([]);
   const [hoverIdx, setHoverIdx] = useState(null);
   const [hoverEventIdx, setHoverEventIdx] = useState(null);
