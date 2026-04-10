@@ -522,10 +522,11 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
         )}
       </div>
 
+      <div style={fullscreen ? { flex: '1 1 0', minHeight: 0, overflow: 'hidden' } : {}}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${svgH}`}
-        style={{ width: '100%', height: fullscreen ? undefined : `${svgH}px`, flex: fullscreen ? 1 : undefined, display: 'block', cursor: drawMode ? 'cell' : 'crosshair', userSelect: 'none' }}
+        style={{ width: '100%', height: fullscreen ? '100%' : `${svgH}px`, display: 'block', cursor: drawMode ? 'cell' : 'crosshair', userSelect: 'none' }}
         preserveAspectRatio="none"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -860,6 +861,7 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
         {/* Invisible overlay for mouse events */}
         <rect x={LEFT} y={PRICE_TOP} width={CHART_W} height={(showRSI ? RSI_BOTTOM : VOL_BOTTOM) - PRICE_TOP} fill="transparent" />
       </svg>
+      </div>
 
       <div style={{
         padding: '2px 8px', background: '#050505', borderTop: '1px solid #111',
