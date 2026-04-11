@@ -11,10 +11,10 @@ create table if not exists events (
 );
 
 -- Indexes for common queries
-create index if not exists idx_events_user on events (user_id);
-create index if not exists idx_events_type on events (event_type);
-create index if not exists idx_events_created on events (created_at);
-create index if not exists idx_events_session on events (session_id);
+create index idx_events_user on events (user_id);
+create index idx_events_type on events (event_type);
+create index idx_events_created on events (created_at);
+create index idx_events_session on events (session_id);
 
 -- Enable Row Level Security
 alter table events enable row level security;
@@ -27,39 +27,10 @@ create policy "Allow inserts from API" on events
 create policy "Users read own events" on events
   for select using (auth.uid()::text = user_id);
 
--- Saved charts table
-create table if not exists saved_charts (
-  id bigint generated always as identity primary key,
-  user_id text not null,
-  ticker text not null,
-  drawings jsonb default '[]',
-  indicators jsonb default '[]',
-  chart_mode text default 'CANDLE',
-  range text default '1Y',
-  saved_at timestamptz default now(),
-  unique(user_id, ticker)
-);
-
-create index if not exists idx_charts_user on saved_charts (user_id);
-create index if not exists idx_charts_user_ticker on saved_charts (user_id, ticker);
-
-alter table saved_charts enable row level security;
-
-create policy "Allow inserts from API" on saved_charts
-  for insert with check (true);
-
-create policy "Allow updates from API" on saved_charts
-  for update using (true);
-
-create policy "Allow deletes from API" on saved_charts
-  for delete using (true);
-
-create policy "Allow reads from API" on saved_charts
-  for select using (true);
-
 -- Optional: auto-delete events older than 90 days to stay within free tier
 -- Uncomment if you want automatic cleanup:
 -- create extension if not exists pg_cron;
 -- select cron.schedule('cleanup-old-events', '0 3 * * 0', $$
 --   delete from events where created_at < now() - interval '90 days';
 -- $$);
+

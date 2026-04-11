@@ -65,3 +65,15 @@ export function computeRSI(bars, period = 14) {
   }
   return result;
 }
+
+export function computeVWAP(bars) {
+  const result = new Array(bars.length).fill(null);
+  let cumTPV = 0, cumVol = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const tp = (bars[i].h + bars[i].l + bars[i].c) / 3;
+    cumTPV += tp * (bars[i].v || 0);
+    cumVol += bars[i].v || 0;
+    result[i] = cumVol > 0 ? cumTPV / cumVol : null;
+  }
+  return result;
+}

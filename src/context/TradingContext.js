@@ -142,20 +142,46 @@ function reducer(state, action) {
   }
 }
 
-export function TradingProvider({ userEmail, children }) {
+export function TradingProvider({ userEmail, userUniversity, children }) {
   const key = storageKey(userEmail);
   const [state, dispatch] = useReducer(reducer, key, loadState);
 
   // Persist on every state change
   useEffect(() => { saveState(key, state); }, [key, state]);
 
+  // Sync portfolio snapshot to leaderboard after state changes
+  const syncLeaderboard = useCallback((currentState) => {
+    if (!userEmail) return;
+    const positions = Object.values(currentState.positions);
+    const numPositions = positions.length;
+    // total_value = cash (positions value needs live prices, so we use the last snapshot if available)
+    const lastSnapshot = currentState.portfolioHistory[currentState.portfolioHistory.length - 1];
+    const totalValue = lastSnapshot?.value ?? currentState.cash;
+    const totalReturnPct = ((totalValue - INITIAL_CASH) / INITIAL_CASH) * 100;
+
+    fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userEmail,
+        university: userUniversity || '',
+        total_value: totalValue,
+        total_return_pct: totalReturnPct,
+        cash: currentState.cash,
+        num_positions: numPositions,
+      }),
+    }).catch(() => {});
+  }, [userEmail, userUniversity]);
+
   const executeBuy = useCallback((symbol, shares, price) => {
     const total = shares * price;
     if (total > state.cash) return { success: false, error: 'INSUFFICIENT FUNDS' };
     if (shares <= 0 || !Number.isInteger(shares)) return { success: false, error: 'INVALID SHARES' };
     dispatch({ type: 'BUY', symbol, shares, price });
+    // Sync after trade — use next tick so state has updated
+    setTimeout(() => syncLeaderboard({ ...state, cash: state.cash - total, positions: { ...state.positions, [symbol]: { shares: (state.positions[symbol]?.shares || 0) + shares } } }), 0);
     return { success: true };
-  }, [state.cash]);
+  }, [state, syncLeaderboard]);
 
   const executeSell = useCallback((symbol, shares, price) => {
     const pos = state.positions[symbol];
@@ -163,8 +189,9 @@ export function TradingProvider({ userEmail, children }) {
     if (shares > pos.shares) return { success: false, error: `ONLY ${pos.shares} SHARES OWNED` };
     if (shares <= 0 || !Number.isInteger(shares)) return { success: false, error: 'INVALID SHARES' };
     dispatch({ type: 'SELL', symbol, shares, price });
+    setTimeout(() => syncLeaderboard({ ...state, cash: state.cash + shares * price }), 0);
     return { success: true };
-  }, [state.positions]);
+  }, [state, syncLeaderboard]);
 
   const resetPortfolio = useCallback(() => {
     dispatch({ type: 'RESET' });
@@ -172,7 +199,24 @@ export function TradingProvider({ userEmail, children }) {
 
   const recordSnapshot = useCallback((value, cash, spyValue) => {
     dispatch({ type: 'SNAPSHOT', value, cash, spyValue });
-  }, []);
+    // Sync accurate portfolio value to leaderboard
+    if (userEmail) {
+      const numPositions = Object.keys(state.positions).length;
+      const totalReturnPct = ((value - INITIAL_CASH) / INITIAL_CASH) * 100;
+      fetch('/api/leaderboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userEmail,
+          university: userUniversity || '',
+          total_value: value,
+          total_return_pct: totalReturnPct,
+          cash,
+          num_positions: numPositions,
+        }),
+      }).catch(() => {});
+    }
+  }, [userEmail, userUniversity, state.positions]);
 
   return (
     <TradingContext.Provider value={{

@@ -191,7 +191,7 @@ const S = {
   },
 };
 
-const TABS = ['OVERVIEW', 'INFLECTION', 'KPI CORRELATION', 'TREND ANALYSIS', 'OVERLAY', 'HEATMAP', 'SCREENER', 'MACRO ECON', 'GEO INTEL', 'NEWS', 'RESEARCH', 'PROJECTS', 'PAPER TRADE', 'GLOSSARY'];
+const TABS = ['OVERVIEW', 'INFLECTION', 'KPI CORRELATION', 'TREND ANALYSIS', 'OVERLAY', 'HEATMAP', 'SCREENER', 'MACRO ECON', 'GEO INTEL', 'NEWS', 'RESEARCH', 'PROJECTS', 'PAPER TRADE', 'LEADERBOARD', 'GLOSSARY'];
 
 export default function TopBanner({ ticker, activeTab, onTabChange, onTickerChange, apiKey, isRateLimited, isLive }) {
   const [time, setTime] = useState('');
