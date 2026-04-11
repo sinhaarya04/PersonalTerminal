@@ -12,7 +12,7 @@ const S = {
   },
 };
 
-export default function FullscreenChart({ bars, ticker, quote, events, initialDrawings, onSave, onClose }) {
+export default function FullscreenChart({ bars, ticker, quote, events, initialDrawings, onSave, onClose, interval, onIntervalChange }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -31,6 +31,8 @@ export default function FullscreenChart({ bars, ticker, quote, events, initialDr
           initialDrawings={initialDrawings}
           onSave={onSave}
           onToggleFullscreen={onClose}
+          interval={interval}
+          onIntervalChange={onIntervalChange}
         />
       </div>
     </div>

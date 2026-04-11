@@ -1,25 +1,50 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { computeSMA, computeEMA, computeBollinger, computeRSI } from '../utils/indicators';
+import { computeSMA, computeEMA, computeBollinger, computeRSI, computeVWAP } from '../utils/indicators';
 import Tooltip from './Tooltip';
 
-const RANGES = [
-  { label: '1M',  days: 21 },
-  { label: '3M',  days: 63 },
-  { label: '6M',  days: 126 },
-  { label: '1Y',  days: 252 },
-  { label: '2Y',  days: 504 },
+const INTERVALS = [
+  { label: '15M', interval: '15m' },
+  { label: '30M', interval: '30m' },
+  { label: '1H',  interval: '60m' },
+  { label: '1D',  interval: '1d' },
 ];
+
+const RANGES_BY_INTERVAL = {
+  '15m': [
+    { label: '1D',  days: 1 },
+    { label: '5D',  days: 5 },
+    { label: '1MO', days: 21 },
+  ],
+  '30m': [
+    { label: '1D',  days: 1 },
+    { label: '5D',  days: 5 },
+    { label: '1MO', days: 21 },
+  ],
+  '60m': [
+    { label: '5D',  days: 5 },
+    { label: '1MO', days: 21 },
+    { label: '2MO', days: 42 },
+  ],
+  '1d': [
+    { label: '1M',  days: 21 },
+    { label: '3M',  days: 63 },
+    { label: '6M',  days: 126 },
+    { label: '1Y',  days: 252 },
+    { label: '2Y',  days: 504 },
+  ],
+};
 
 const INDICATOR_DEFS = [
   { key: 'SMA20',  label: 'SMA20',  color: '#ffcc00', type: 'overlay' },
   { key: 'SMA50',  label: 'SMA50',  color: '#00cccc', type: 'overlay' },
   { key: 'EMA20',  label: 'EMA20',  color: '#ff8c00', type: 'overlay' },
+  { key: 'VWAP',   label: 'VWAP',   color: '#ff66ff', type: 'overlay' },
   { key: 'BB',     label: 'BB',     color: '#aa66ff', type: 'overlay' },
   { key: 'RSI',    label: 'RSI',    color: '#ff8c00', type: 'sub' },
 ];
 
 const INDICATOR_TOOLTIP_MAP = {
-  SMA20: 'sma', SMA50: 'sma', EMA20: 'ema', BB: 'bollinger-bands', RSI: 'rsi',
+  SMA20: 'sma', SMA50: 'sma', EMA20: 'ema', VWAP: 'vwap', BB: 'bollinger-bands', RSI: 'rsi',
 };
 
 // SVG coordinate space
@@ -40,13 +65,20 @@ function formatPrice(v) {
   return v.toFixed(2);
 }
 
-function formatDate(ts) {
+function formatDate(ts, intraday) {
   const d = new Date(ts);
+  if (intraday) {
+    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
   return `${d.toLocaleString('en-US', { month: 'short' })} '${String(d.getFullYear()).slice(2)}`;
 }
 
-function formatFullDate(ts) {
+function formatFullDate(ts, intraday) {
   const d = new Date(ts);
+  if (intraday) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+      ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -73,8 +105,11 @@ function buildLine(values, xOf, yScale) {
   return segments;
 }
 
-export default function PriceChart({ bars, ticker, quote, events, fullscreen, initialDrawings, initialRange, initialChartMode, onDrawingsChange, onSave, onToggleFullscreen, label }) {
-  const [range, setRange] = useState(initialRange || '1Y');
+export default function PriceChart({ bars, ticker, quote, events, fullscreen, initialDrawings, initialRange, initialChartMode, onDrawingsChange, onSave, onToggleFullscreen, label, interval, onIntervalChange }) {
+  const currentInterval = interval || '1d';
+  const isIntraday = currentInterval !== '1d';
+  const ranges = RANGES_BY_INTERVAL[currentInterval] || RANGES_BY_INTERVAL['1d'];
+  const [range, setRange] = useState(initialRange || ranges[Math.floor(ranges.length / 2)]?.label || '1Y');
   const [chartMode, setChartMode] = useState(initialChartMode || 'CANDLE');
   const [activeIndicators, setActiveIndicators] = useState([]);
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -122,9 +157,15 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
   // Bars sliced by the selected range button
   const rangedBars = useMemo(() => {
     if (!bars?.length) return [];
-    const r = RANGES.find(r => r.label === range) || RANGES[3];
+    const r = ranges.find(r => r.label === range) || ranges[Math.floor(ranges.length / 2)];
+    if (isIntraday) {
+      // For intraday, days = trading days; estimate bars per day based on interval
+      const barsPerDay = currentInterval === '15m' ? 26 : currentInterval === '30m' ? 13 : 7; // approx for 6.5hr trading day
+      const maxBars = r.days * barsPerDay;
+      return bars.slice(-maxBars);
+    }
     return bars.slice(-r.days);
-  }, [bars, range]);
+  }, [bars, range, ranges, isIntraday, currentInterval]);
 
   // Final visible bars: apply zoom if active
   const visible = useMemo(() => {
@@ -141,6 +182,7 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
   const sma20 = useMemo(() => activeIndicators.includes('SMA20') ? computeSMA(visible, 20) : [], [visible, activeIndicators]);
   const sma50 = useMemo(() => activeIndicators.includes('SMA50') ? computeSMA(visible, 50) : [], [visible, activeIndicators]);
   const ema20 = useMemo(() => activeIndicators.includes('EMA20') ? computeEMA(visible, 20) : [], [visible, activeIndicators]);
+  const vwap = useMemo(() => activeIndicators.includes('VWAP') ? computeVWAP(visible) : [], [visible, activeIndicators]);
   const bb = useMemo(() => activeIndicators.includes('BB') ? computeBollinger(visible, 20, 2) : [], [visible, activeIndicators]);
   const rsi = useMemo(() => activeIndicators.includes('RSI') ? computeRSI(visible, 14) : [], [visible, activeIndicators]);
 
@@ -281,6 +323,12 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
   }, [pendingDraw]);
   const resetZoom = useCallback(() => setZoomSlice(null), []);
   const handleRangeChange = useCallback((label) => { setRange(label); setZoomSlice(null); }, []);
+  const handleIntervalChange = useCallback((intv) => {
+    if (onIntervalChange) onIntervalChange(intv);
+    const newRanges = RANGES_BY_INTERVAL[intv] || RANGES_BY_INTERVAL['1d'];
+    setRange(newRanges[Math.floor(newRanges.length / 2)]?.label || '1Y');
+    setZoomSlice(null);
+  }, [onIntervalChange]);
 
   // Map macro events to bar indices
   const visibleEventBars = useMemo(() => {
@@ -439,7 +487,7 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
         <span style={Styles.title}>{label ? `${label} — ` : ''}PRICE CHART — {ticker}</span>
         {hoverBar ? (
           <span style={{ fontFamily: 'Consolas,monospace', fontSize: '12px', color: '#b0b0b0', marginRight: '8px' }}>
-            <span style={{ color: '#ffcc00' }}>{formatFullDate(hoverBar.t)}</span>
+            <span style={{ color: '#ffcc00' }}>{formatFullDate(hoverBar.t, isIntraday)}</span>
             {' '}O:<span style={{ color: '#fff' }}>{formatPrice(hoverBar.o)}</span>
             {' '}H:<span style={{ color: '#00cc00' }}>{formatPrice(hoverBar.h)}</span>
             {' '}L:<span style={{ color: '#ff4444' }}>{formatPrice(hoverBar.l)}</span>
@@ -458,7 +506,13 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
         <button style={Styles.modeBtn(chartMode === 'CANDLE')} onClick={() => setChartMode('CANDLE')}>CANDLE</button>
         <Tooltip termKey="candlestick" />
         <span style={Styles.sep}>|</span>
-        {RANGES.map(r => (
+        {INTERVALS.map(intv => (
+          <button key={intv.interval} style={Styles.rangeBtn(currentInterval === intv.interval)} onClick={() => handleIntervalChange(intv.interval)}>
+            {intv.label}
+          </button>
+        ))}
+        <span style={Styles.sep}>|</span>
+        {ranges.map(r => (
           <button key={r.label} style={Styles.rangeBtn(range === r.label)} onClick={() => handleRangeChange(r.label)}>
             {r.label}
           </button>
@@ -618,6 +672,9 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
         {ema20.length > 0 && buildLine(ema20, xOf, yOf).map((pts, i) => (
           <polyline key={`ema20-${i}`} points={pts} fill="none" stroke="#ff8c00" strokeWidth="1" opacity="0.8" />
         ))}
+        {vwap.length > 0 && buildLine(vwap, xOf, yOf).map((pts, i) => (
+          <polyline key={`vwap-${i}`} points={pts} fill="none" stroke="#ff66ff" strokeWidth="1.2" opacity="0.85" />
+        ))}
         {bb.length > 0 && (
           <>
             {buildLine(bb.map(b => b?.upper), xOf, yOf).map((pts, i) => (
@@ -774,8 +831,8 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
               const eBar = rangedBars[en];
               return (
                 <>
-                  {sBar && <text x={selLeft} y={VOL_BOTTOM + 12} fill="#ff8c00" fontSize="9" textAnchor="start" fontFamily="Consolas,monospace">{formatFullDate(sBar.t)}</text>}
-                  {eBar && <text x={selRight} y={VOL_BOTTOM + 12} fill="#ff8c00" fontSize="9" textAnchor="end" fontFamily="Consolas,monospace">{formatFullDate(eBar.t)}</text>}
+                  {sBar && <text x={selLeft} y={VOL_BOTTOM + 12} fill="#ff8c00" fontSize="9" textAnchor="start" fontFamily="Consolas,monospace">{formatFullDate(sBar.t, isIntraday)}</text>}
+                  {eBar && <text x={selRight} y={VOL_BOTTOM + 12} fill="#ff8c00" fontSize="9" textAnchor="end" fontFamily="Consolas,monospace">{formatFullDate(eBar.t, isIntraday)}</text>}
                 </>
               );
             })()}
@@ -797,7 +854,7 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
             <rect x={hoverX - 40} y={(showRSI ? RSI_BOTTOM : VOL_BOTTOM) + 2} width={80} height={14} fill="#ff8c00" rx="1" />
             <text x={hoverX.toFixed(1)} y={((showRSI ? RSI_BOTTOM : VOL_BOTTOM) + 9).toFixed(1)} fill="#000" fontSize="9"
               textAnchor="middle" dominantBaseline="middle" fontFamily="Consolas,monospace" fontWeight="bold">
-              {formatFullDate(hoverBar.t)}
+              {formatFullDate(hoverBar.t, isIntraday)}
             </text>
             <circle cx={hoverX.toFixed(1)} cy={hoverY.toFixed(1)} r="4" fill="#ff8c00" />
             <circle cx={hoverX.toFixed(1)} cy={hoverY.toFixed(1)} r="2" fill="#000" />
@@ -851,7 +908,7 @@ export default function PriceChart({ bars, ticker, quote, events, fullscreen, in
         {/* X-axis date labels */}
         {xLabels.map(({ i, ts }) => (
           <text key={i} x={xOf(i).toFixed(1)} y={svgH - 3} fill="#555" fontSize="9" textAnchor="middle" fontFamily="Consolas,monospace">
-            {formatDate(ts)}
+            {formatDate(ts, isIntraday)}
           </text>
         ))}
 

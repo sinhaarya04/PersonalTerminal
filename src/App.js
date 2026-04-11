@@ -34,6 +34,7 @@ import StockScreener from './components/StockScreener';
 import { useAuth } from './context/AuthContext';
 import SignInPage from './components/SignInPage';
 import FullscreenChart from './components/FullscreenChart';
+import Leaderboard from './components/Leaderboard';
 import { useSavedChart } from './hooks/useChartStorage';
 import { track } from './lib/analytics';
 
@@ -249,6 +250,7 @@ function AppMain({ user }) {
   const [dataSource, setDataSource] = useState('DEMO');
   const [loadingTicker, setLoadingTicker] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [chartInterval, setChartInterval] = useState('1d');
 
   // ── Watchlist state ──────────────────────────────────────────────────────
   const DEFAULT_WATCHLIST = [
@@ -342,7 +344,7 @@ function AppMain({ user }) {
   };
 
   // ── Fetch ticker data — Yahoo first, Polygon upgrade ──────────────────────
-  const fetchTickerData = useCallback(async (sym) => {
+  const fetchTickerData = useCallback(async (sym, intv = '1d') => {
     setLoadingTicker(true);
     setAltData(null);
     setQuoteData(null);
@@ -351,6 +353,9 @@ function AppMain({ user }) {
     const today = new Date();
     const fmt = d => d.toISOString().split('T')[0];
 
+    // Map interval to Yahoo Finance range
+    const yfRange = intv === '1d' ? '2y' : '60d';
+
     // ── 1. Try Yahoo Finance (always available) ───────────────────────────
     let yfQuoteObj = null;
     let bars = null;
@@ -358,7 +363,7 @@ function AppMain({ user }) {
 
     try {
       const [chartResult, quoteResult] = await Promise.allSettled([
-        fetchYFChart(sym, '2y', '1d'),
+        fetchYFChart(sym, yfRange, intv),
         fetchYFQuotes([sym]),
       ]);
 
@@ -374,8 +379,8 @@ function AppMain({ user }) {
       }
     } catch { /* fall through to Polygon or demo */ }
 
-    // ── 2. Upgrade with Polygon if key is set ────────────────────────────
-    if (polygonKey) {
+    // ── 2. Upgrade with Polygon if key is set (daily bars only) ─────────
+    if (polygonKey && intv === '1d') {
       try {
         const from = new Date(today);
         from.setFullYear(from.getFullYear() - 2);
@@ -425,8 +430,13 @@ function AppMain({ user }) {
     track('ticker_search', { ticker: sym, from: ticker }, user.email);
     setTicker(sym);
     setActiveTab('INFLECTION');
-    fetchTickerData(sym);
-  }, [fetchTickerData, ticker, user.email]);
+    fetchTickerData(sym, chartInterval);
+  }, [fetchTickerData, ticker, user.email, chartInterval]);
+
+  const handleIntervalChange = useCallback((intv) => {
+    setChartInterval(intv);
+    fetchTickerData(ticker, intv);
+  }, [fetchTickerData, ticker]);
 
   const handleTabChange = useCallback((tab) => {
     track('tab_change', { tab, from: activeTab }, user.email);
@@ -568,6 +578,8 @@ function AppMain({ user }) {
                   initialDrawings={savedChart.drawings}
                   initialRange={savedChart.range}
                   initialChartMode={savedChart.chartMode}
+                  interval={chartInterval}
+                  onIntervalChange={handleIntervalChange}
                   label="SAVED"
                 />
               </div>
@@ -580,6 +592,8 @@ function AppMain({ user }) {
                   onDrawingsChange={setLiveDrawings}
                   onSave={handleSaveChart}
                   onToggleFullscreen={() => { track('fullscreen_chart', { ticker }, user.email); setShowFullscreen(true); }}
+                  interval={chartInterval}
+                  onIntervalChange={handleIntervalChange}
                   label="LIVE"
                 />
               </div>
@@ -593,6 +607,8 @@ function AppMain({ user }) {
               onDrawingsChange={setLiveDrawings}
               onSave={handleSaveChart}
               onToggleFullscreen={() => { track('fullscreen_chart', { ticker }, user.email); setShowFullscreen(true); }}
+              interval={chartInterval}
+              onIntervalChange={handleIntervalChange}
             />
           )}
           <AltDataTable
@@ -627,6 +643,7 @@ function AppMain({ user }) {
     if (activeTab === 'PROJECTS')       return <ProjectIdeas />;
     if (activeTab === 'SCREENER')       return <StockScreener onTickerChange={handleTickerChange} />;
     if (activeTab === 'PAPER TRADE')    return <PaperTrading ticker={ticker} quoteData={quoteData} onTickerChange={handleTickerChange} />;
+    if (activeTab === 'LEADERBOARD')    return <Leaderboard />;
     if (activeTab === 'GLOSSARY')       return <GlossaryPanel />;
 
     return <WorldEquityIndices />;
@@ -646,7 +663,7 @@ function AppMain({ user }) {
     : '#555555';
 
   return (
-    <TradingProvider userEmail={user.email}>
+    <TradingProvider userEmail={user.email} userUniversity={user.university}>
     <div style={S.app}>
       <TopBanner
         ticker={ticker}
@@ -740,6 +757,8 @@ function AppMain({ user }) {
           initialDrawings={liveDrawings}
           onSave={handleSaveChart}
           onClose={() => setShowFullscreen(false)}
+          interval={chartInterval}
+          onIntervalChange={handleIntervalChange}
         />
       )}
     </div>

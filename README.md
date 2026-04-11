@@ -4,7 +4,9 @@
 
 Real-time market data, interactive charts, macro economics, global news intelligence, and quantitative research — all in a single-page app that looks and feels like the $25,000/year terminal, running free on `localhost`.
 
-![Bloomberg Terminal Clone](https://img.shields.io/badge/REACT-18.2-61dafb?style=flat-square&logo=react) ![Lines of Code](https://img.shields.io/badge/LOC-9700+-ff8c00?style=flat-square) ![License](https://img.shields.io/badge/LICENSE-AGPL--3.0-green?style=flat-square) ![APIs](https://img.shields.io/badge/APIs-5%20LIVE%20FEEDS-cc0000?style=flat-square)
+![Bloomberg Terminal Clone](https://img.shields.io/badge/REAC
+
+T-18.2-61dafb?style=flat-square&logo=react) ![Lines of Code](https://img.shields.io/badge/LOC-9700+-ff8c00?style=flat-square) ![License](https://img.shields.io/badge/LICENSE-AGPL--3.0-green?style=flat-square) ![APIs](https://img.shields.io/badge/APIs-5%20LIVE%20FEEDS-cc0000?style=flat-square)
 
 ---
 
