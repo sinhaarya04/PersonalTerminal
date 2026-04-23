@@ -2,7 +2,6 @@ from http.server import BaseHTTPRequestHandler
 import json
 from urllib.parse import urlparse, parse_qs
 import numpy as np
-from scipy.optimize import minimize
 import yfinance as yf
 
 class handler(BaseHTTPRequestHandler):
@@ -32,50 +31,44 @@ class handler(BaseHTTPRequestHandler):
                 sharpe = (ret - rf) / vol if vol > 0 else 0
                 return ret, vol, sharpe
 
-            constraints = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1}]
-            bounds = tuple((0, 1) for _ in range(n))
-            init_weights = np.ones(n) / n
+            # Monte Carlo optimization: generate random portfolios
+            np.random.seed(42)
+            num_portfolios = 5000
+            all_weights = np.random.dirichlet(np.ones(n), num_portfolios)
+            all_stats = np.array([portfolio_stats(w) for w in all_weights])
+
+            best_sharpe_idx = np.argmax(all_stats[:, 2])
+            min_vol_idx = np.argmin(all_stats[:, 1])
 
             if method == 'max_sharpe':
-                def neg_sharpe(w):
-                    r, v, _ = portfolio_stats(w)
-                    return -(r - rf) / v if v > 0 else 0
-                result_opt = minimize(neg_sharpe, init_weights, method='SLSQP', bounds=bounds, constraints=constraints)
+                opt_weights = all_weights[best_sharpe_idx]
             elif method == 'min_vol':
-                def vol_obj(w):
-                    return np.sqrt(np.dot(w.T, np.dot(cov_matrix, w)))
-                result_opt = minimize(vol_obj, init_weights, method='SLSQP', bounds=bounds, constraints=constraints)
+                opt_weights = all_weights[min_vol_idx]
             elif method == 'risk_parity':
-                def risk_parity_obj(w):
-                    port_vol = np.sqrt(np.dot(w.T, np.dot(cov_matrix, w)))
-                    marginal = np.dot(cov_matrix, w)
-                    risk_contrib = w * marginal / port_vol
-                    target = port_vol / n
-                    return np.sum((risk_contrib - target) ** 2)
-                result_opt = minimize(risk_parity_obj, init_weights, method='SLSQP', bounds=bounds, constraints=constraints)
+                # Inverse volatility weighting as risk parity proxy
+                vols = np.sqrt(np.diag(cov_matrix))
+                inv_vol = 1.0 / vols
+                opt_weights = inv_vol / inv_vol.sum()
             else:
-                # Equal weight
-                result_opt = type('obj', (object,), {'x': init_weights, 'success': True})()
+                opt_weights = np.ones(n) / n
 
-            opt_weights = result_opt.x
             opt_ret, opt_vol, opt_sharpe = portfolio_stats(opt_weights)
 
-            # Generate efficient frontier (50 points)
-            target_returns = np.linspace(min(mean_returns) * 0.5, max(mean_returns) * 1.2, 50)
+            # Efficient frontier from simulated portfolios
             frontier = []
-            for target in target_returns:
-                cons = [
-                    {'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
-                    {'type': 'eq', 'fun': lambda w, t=target: np.dot(w, mean_returns) - t}
-                ]
-                try:
-                    res = minimize(lambda w: np.sqrt(np.dot(w.T, np.dot(cov_matrix, w))),
-                                  init_weights, method='SLSQP', bounds=bounds, constraints=cons)
-                    if res.success:
-                        r, v, s = portfolio_stats(res.x)
-                        frontier.append({'return': round(r * 100, 2), 'volatility': round(v * 100, 2), 'sharpe': round(s, 3)})
-                except:
-                    pass
+            # Sort by volatility and pick the best return at each vol level
+            sorted_idx = np.argsort(all_stats[:, 1])
+            vol_bins = np.linspace(all_stats[:, 1].min(), all_stats[:, 1].max(), 50)
+            for i in range(len(vol_bins) - 1):
+                mask = (all_stats[:, 1] >= vol_bins[i]) & (all_stats[:, 1] < vol_bins[i + 1])
+                if mask.any():
+                    best = np.argmax(all_stats[mask, 0])
+                    idx = np.where(mask)[0][best]
+                    frontier.append({
+                        'return': round(float(all_stats[idx, 0] * 100), 2),
+                        'volatility': round(float(all_stats[idx, 1] * 100), 2),
+                        'sharpe': round(float(all_stats[idx, 2]), 3)
+                    })
 
             # Individual asset points
             asset_points = []
