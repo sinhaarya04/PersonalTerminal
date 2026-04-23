@@ -95,20 +95,33 @@ const S = {
     background: '#e67300',
     display: 'flex',
     alignItems: 'center',
-    padding: '0 8px',
+    padding: '0 2px',
     height: '26px',
     gap: '2px',
-    borderBottom: '2px solid #cc0000',
     overflowX: 'auto',
     flexWrap: 'nowrap',
+    scrollbarWidth: 'thin',
+    scrollbarColor: '#cc5500 #e67300',
+  },
+  scrollBtn: {
+    background: '#cc5500',
+    color: '#fff',
+    border: 'none',
+    fontFamily: "'Consolas','Courier New',monospace",
+    fontSize: '14px',
+    cursor: 'pointer',
+    padding: '0 6px',
+    height: '26px',
+    flexShrink: 0,
+    fontWeight: 'bold',
   },
   tab: (active) => ({
     background: active ? '#cc5500' : 'transparent',
     color: active ? '#ffffff' : '#ffcc00',
     border: active ? '1px solid #cc5500' : '1px solid transparent',
     fontFamily: "'Consolas','Courier New',monospace",
-    fontSize: '12px',
-    padding: '2px 12px',
+    fontSize: '11px',
+    padding: '2px 8px',
     cursor: 'pointer',
     letterSpacing: '0.5px',
     textTransform: 'uppercase',
@@ -323,16 +336,20 @@ export default function TopBanner({ ticker, activeTab, onTabChange, onTickerChan
       </div>
 
       {/* Orange tab bar */}
-      <div style={S.orangeBar}>
-        {TABS.map(tab => (
-          <button
-            key={tab}
-            style={S.tab(activeTab === tab)}
-            onClick={() => onTabChange(tab)}
-          >
-            {tab}
-          </button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', background: '#e67300', borderBottom: '2px solid #cc0000' }}>
+        <button style={S.scrollBtn} onClick={() => { const el = document.getElementById('tabbar'); if (el) el.scrollLeft -= 200; }}>{'\u25C0'}</button>
+        <div id="tabbar" style={S.orangeBar}>
+          {TABS.map(tab => (
+            <button
+              key={tab}
+              style={S.tab(activeTab === tab)}
+              onClick={() => onTabChange(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        <button style={S.scrollBtn} onClick={() => { const el = document.getElementById('tabbar'); if (el) el.scrollLeft += 200; }}>{'\u25B6'}</button>
       </div>
     </div>
   );
