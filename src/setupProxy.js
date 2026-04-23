@@ -105,6 +105,120 @@ module.exports = function (app) {
     })
   );
 
+  // CoinGecko — crypto market data
+  app.use(
+    '/coingecko',
+    createProxyMiddleware({
+      target: 'https://api.coingecko.com',
+      changeOrigin: true,
+      pathRewrite: { '^/coingecko': '' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BloombergTerminalClone/1.0)', Accept: 'application/json' },
+      on: { error: (err, req, res) => { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: err.message })); } },
+    })
+  );
+
+  // DeFi Llama — DeFi TVL data
+  app.use(
+    '/defillama',
+    createProxyMiddleware({
+      target: 'https://api.llama.fi',
+      changeOrigin: true,
+      pathRewrite: { '^/defillama': '' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BloombergTerminalClone/1.0)', Accept: 'application/json' },
+      on: { error: (err, req, res) => { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: err.message })); } },
+    })
+  );
+
+  // Polymarket — prediction markets
+  app.use(
+    '/polymarket',
+    createProxyMiddleware({
+      target: 'https://gamma-api.polymarket.com',
+      changeOrigin: true,
+      pathRewrite: { '^/polymarket': '' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BloombergTerminalClone/1.0)', Accept: 'application/json' },
+      on: { error: (err, req, res) => { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: err.message })); } },
+    })
+  );
+
+  // SEC EDGAR — company filings
+  app.use(
+    '/sec',
+    createProxyMiddleware({
+      target: 'https://efts.sec.gov',
+      changeOrigin: true,
+      pathRewrite: { '^/sec': '' },
+      headers: { 'User-Agent': 'BloombergTerminalClone/1.0 (opensource@bloomberg-clone.dev)', Accept: 'application/json' },
+      on: { error: (err, req, res) => { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: err.message })); } },
+    })
+  );
+
+  // World Bank — global economic indicators
+  app.use(
+    '/worldbank',
+    createProxyMiddleware({
+      target: 'https://api.worldbank.org',
+      changeOrigin: true,
+      pathRewrite: { '^/worldbank': '' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BloombergTerminalClone/1.0)', Accept: 'application/json' },
+      on: { error: (err, req, res) => { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: err.message })); } },
+    })
+  );
+
+  // YouTube live stream resolver — fetches channel /live page, extracts current video ID
+  app.use('/ytlive', (req, res) => {
+    const channelUrl = req.query.url;
+    if (!channelUrl) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Missing url parameter' }));
+      return;
+    }
+    const https = require('https');
+    const cache = app._ytliveCache || (app._ytliveCache = {});
+    const cached = cache[channelUrl];
+    if (cached && Date.now() < cached.exp) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ videoId: cached.videoId }));
+      return;
+    }
+
+    function doFetch(url) {
+      https.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        timeout: 12000,
+      }, (proxyRes) => {
+        if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+          doFetch(proxyRes.headers.location);
+          proxyRes.resume();
+          return;
+        }
+        let body = '';
+        proxyRes.on('data', chunk => { body += chunk; });
+        proxyRes.on('end', () => {
+          const m = body.match(/<link\s+rel="canonical"\s+href="[^"]*[?&]v=([a-zA-Z0-9_-]{11})"/)
+               || body.match(/<meta\s+property="og:url"\s+content="[^"]*[?&]v=([a-zA-Z0-9_-]{11})"/)
+               || body.match(/"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/);
+          if (m) {
+            cache[channelUrl] = { videoId: m[1], exp: Date.now() + 10 * 60 * 1000 };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ videoId: m[1] }));
+          } else {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'No live stream found' }));
+          }
+        });
+      }).on('error', (err) => {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      });
+    }
+    doFetch(channelUrl);
+  });
+
   // RSS feed proxy — fetches any URL server-side to bypass CORS
   // Usage: /rssproxy?url=<encoded-feed-url>
   app.use('/rssproxy', (req, res) => {
