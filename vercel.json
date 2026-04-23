@@ -6,6 +6,21 @@
     { "source": "/semscholar/(.*)", "destination": "/api/semscholar?path=/$1" },
     { "source": "/fred/(.*)", "destination": "/api/fred?path=/$1" },
     { "source": "/rssproxy", "destination": "/api/rssproxy" },
+    { "source": "/ytlive", "destination": "/api/ytlive" },
+    { "source": "/coingecko/(.*)", "destination": "/api/coingecko?path=/$1" },
+    { "source": "/defillama/(.*)", "destination": "/api/defillama?path=/$1" },
+    { "source": "/polymarket/(.*)", "destination": "/api/polymarket?path=/$1" },
+    { "source": "/sec/(.*)", "destination": "/api/sec?path=/$1" },
+    { "source": "/worldbank/(.*)", "destination": "/api/worldbank?path=/$1" },
+    { "source": "/analytics/options", "destination": "/api/analytics/options" },
+    { "source": "/analytics/portfolio", "destination": "/api/analytics/portfolio" },
+    { "source": "/analytics/dcf", "destination": "/api/analytics/dcf" },
+    { "source": "/analytics/montecarlo", "destination": "/api/analytics/montecarlo" },
+    { "source": "/analytics/optimizer", "destination": "/api/analytics/optimizer" },
+    { "source": "/analytics/backtest", "destination": "/api/analytics/backtest" },
+    { "source": "/analytics/factors", "destination": "/api/analytics/factors" },
+    { "source": "/analytics/forecast", "destination": "/api/analytics/forecast" },
+    { "source": "/analytics/technicals", "destination": "/api/analytics/technicals" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

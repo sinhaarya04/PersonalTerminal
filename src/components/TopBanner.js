@@ -99,6 +99,8 @@ const S = {
     height: '26px',
     gap: '2px',
     borderBottom: '2px solid #cc0000',
+    overflowX: 'auto',
+    flexWrap: 'nowrap',
   },
   tab: (active) => ({
     background: active ? '#cc5500' : 'transparent',
@@ -110,6 +112,8 @@ const S = {
     cursor: 'pointer',
     letterSpacing: '0.5px',
     textTransform: 'uppercase',
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
   }),
   exportWrap: {
     marginLeft: 'auto',
@@ -191,7 +195,7 @@ const S = {
   },
 };
 
-const TABS = ['OVERVIEW', 'INFLECTION', 'KPI CORRELATION', 'TREND ANALYSIS', 'OVERLAY', 'HEATMAP', 'SCREENER', 'MACRO ECON', 'GEO INTEL', 'NEWS', 'RESEARCH', 'PROJECTS', 'PAPER TRADE', 'LEADERBOARD', 'GLOSSARY'];
+const TABS = ['OVERVIEW', 'INFLECTION', 'KPI CORRELATION', 'TREND ANALYSIS', 'OVERLAY', 'HEATMAP', 'SCREENER', 'MACRO ECON', 'ECON CAL', 'GEO INTEL', 'NEWS', 'RESEARCH', 'COMMODITIES', 'CRYPTO', 'DEFI', 'PREDICT MKT', 'SEC FILINGS', 'WORLD ECON', 'IPO CAL', 'PEERS', 'INSIDERS', 'SHORT INT', 'DIVIDENDS', 'FOREX', 'ESTIMATES', 'OPTIONS', 'PORTFOLIO', 'DCF MODEL', 'MONTE CARLO', 'OPTIMIZER', 'BACKTEST', 'FACTORS', 'FORECAST', 'TECHNICALS', 'PROJECTS', 'PAPER TRADE', 'LEADERBOARD', 'GLOSSARY'];
 
 export default function TopBanner({ ticker, activeTab, onTabChange, onTickerChange, apiKey, isRateLimited, isLive }) {
   const [time, setTime] = useState('');
