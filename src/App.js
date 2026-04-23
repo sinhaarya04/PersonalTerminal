@@ -12,7 +12,6 @@ import CorrelationMatrix from './components/CorrelationMatrix';
 import SectorHeatmap from './components/SectorHeatmap';
 import OverlayChart from './components/OverlayChart';
 import NewsTicker from './components/NewsTicker';
-import TopMovers from './components/TopMovers';
 import OverviewDashboard from './components/OverviewDashboard';
 import EarningsCalendar from './components/EarningsCalendar';
 import CryptoTable from './components/CryptoTable';
