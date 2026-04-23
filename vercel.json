@@ -12,15 +12,6 @@
     { "source": "/polymarket/(.*)", "destination": "/api/polymarket?path=/$1" },
     { "source": "/sec/(.*)", "destination": "/api/sec?path=/$1" },
     { "source": "/worldbank/(.*)", "destination": "/api/worldbank?path=/$1" },
-    { "source": "/analytics/options", "destination": "/api/analytics/options" },
-    { "source": "/analytics/portfolio", "destination": "/api/analytics/portfolio" },
-    { "source": "/analytics/dcf", "destination": "/api/analytics/dcf" },
-    { "source": "/analytics/montecarlo", "destination": "/api/analytics/montecarlo" },
-    { "source": "/analytics/optimizer", "destination": "/api/analytics/optimizer" },
-    { "source": "/analytics/backtest", "destination": "/api/analytics/backtest" },
-    { "source": "/analytics/factors", "destination": "/api/analytics/factors" },
-    { "source": "/analytics/forecast", "destination": "/api/analytics/forecast" },
-    { "source": "/analytics/technicals", "destination": "/api/analytics/technicals" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
