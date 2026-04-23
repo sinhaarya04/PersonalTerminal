@@ -13,7 +13,16 @@ import SectorHeatmap from './components/SectorHeatmap';
 import OverlayChart from './components/OverlayChart';
 import NewsTicker from './components/NewsTicker';
 import TopMovers from './components/TopMovers';
+import OverviewDashboard from './components/OverviewDashboard';
 import EarningsCalendar from './components/EarningsCalendar';
+import CryptoTable from './components/CryptoTable';
+import DefiDashboard from './components/DefiDashboard';
+import PredictionMarkets from './components/PredictionMarkets';
+import EconCalendar from './components/EconCalendar';
+import SecFilings from './components/SecFilings';
+import CommoditiesTable from './components/CommoditiesTable';
+import WorldEconDashboard from './components/WorldEconDashboard';
+import IpoCalendar from './components/IpoCalendar';
 import WatchlistSidebar from './components/WatchlistSidebar';
 import { setRateLimitCallback } from './utils/rateLimiter';
 import { isMarketOpen } from './utils/marketHours';
@@ -35,6 +44,21 @@ import { useAuth } from './context/AuthContext';
 import SignInPage from './components/SignInPage';
 import FullscreenChart from './components/FullscreenChart';
 import Leaderboard from './components/Leaderboard';
+import PeerComparison from './components/PeerComparison';
+import InsiderTrading from './components/InsiderTrading';
+import ShortInterest from './components/ShortInterest';
+import DividendTracker from './components/DividendTracker';
+import ForexDashboard from './components/ForexDashboard';
+import EarningsEstimates from './components/EarningsEstimates';
+import OptionsCalculator from './components/OptionsCalculator';
+import PortfolioAnalytics from './components/PortfolioAnalytics';
+import DcfValuation from './components/DcfValuation';
+import MonteCarloSim from './components/MonteCarloSim';
+import PortfolioOptimizer from './components/PortfolioOptimizer';
+import BacktestPanel from './components/BacktestPanel';
+import FactorAnalysis from './components/FactorAnalysis';
+import ForecastPanel from './components/ForecastPanel';
+import TechAnalysis from './components/TechAnalysis';
 import { useSavedChart } from './hooks/useChartStorage';
 import { track } from './lib/analytics';
 
@@ -517,10 +541,7 @@ function AppMain({ user }) {
   const renderMain = () => {
     if (activeTab === 'OVERVIEW') {
       return (
-        <div>
-          <WorldEquityIndices />
-          <TopMovers onTickerChange={handleTickerChange} />
-        </div>
+        <OverviewDashboard onTickerChange={handleTickerChange} ticker={ticker} />
       );
     }
 
@@ -645,6 +666,29 @@ function AppMain({ user }) {
     if (activeTab === 'PAPER TRADE')    return <PaperTrading ticker={ticker} quoteData={quoteData} onTickerChange={handleTickerChange} />;
     if (activeTab === 'LEADERBOARD')    return <Leaderboard />;
     if (activeTab === 'GLOSSARY')       return <GlossaryPanel />;
+    if (activeTab === 'CRYPTO')         return <CryptoTable />;
+    if (activeTab === 'DEFI')           return <DefiDashboard />;
+    if (activeTab === 'PREDICT MKT')    return <PredictionMarkets />;
+    if (activeTab === 'ECON CAL')       return <EconCalendar />;
+    if (activeTab === 'SEC FILINGS')    return <SecFilings />;
+    if (activeTab === 'COMMODITIES')    return <CommoditiesTable />;
+    if (activeTab === 'WORLD ECON')     return <WorldEconDashboard />;
+    if (activeTab === 'IPO CAL')        return <IpoCalendar />;
+    if (activeTab === 'PEERS')           return <PeerComparison />;
+    if (activeTab === 'INSIDERS')        return <InsiderTrading />;
+    if (activeTab === 'SHORT INT')       return <ShortInterest />;
+    if (activeTab === 'DIVIDENDS')       return <DividendTracker />;
+    if (activeTab === 'FOREX')           return <ForexDashboard />;
+    if (activeTab === 'ESTIMATES')       return <EarningsEstimates />;
+    if (activeTab === 'OPTIONS')         return <OptionsCalculator />;
+    if (activeTab === 'PORTFOLIO')      return <PortfolioAnalytics />;
+    if (activeTab === 'DCF MODEL')      return <DcfValuation />;
+    if (activeTab === 'MONTE CARLO')    return <MonteCarloSim />;
+    if (activeTab === 'OPTIMIZER')      return <PortfolioOptimizer />;
+    if (activeTab === 'BACKTEST')       return <BacktestPanel />;
+    if (activeTab === 'FACTORS')        return <FactorAnalysis />;
+    if (activeTab === 'FORECAST')       return <ForecastPanel />;
+    if (activeTab === 'TECHNICALS')     return <TechAnalysis />;
 
     return <WorldEquityIndices />;
   };
