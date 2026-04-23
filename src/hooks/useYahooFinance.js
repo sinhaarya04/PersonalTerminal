@@ -382,6 +382,12 @@ export async function fetchScreenerUniverse() {
   return universe;
 }
 
+// ── Global snapshot — VIX, 10Y, DXY, Gold, Oil, BTC ─────────────────────────
+export async function fetchGlobalSnapshot() {
+  const symbols = ['^VIX', '^TNX', 'DX-Y.NYB', 'GC=F', 'CL=F', 'BTC-USD'];
+  return fetchYFQuotesLive(symbols);
+}
+
 // ── RSI batch — lazy fetch for screener RSI filter ──────────────────────────
 export async function fetchRSIBatch(symbols, period = 14) {
   const results = await Promise.allSettled(

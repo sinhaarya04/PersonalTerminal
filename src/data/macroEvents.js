@@ -73,12 +73,43 @@ const CPI_DATES = [
   { date: '2026-12-10', label: 'CPI', detail: 'CPI RELEASE' },
 ];
 
+const NFP_DATES = [
+  // 2025
+  { date: '2025-01-10', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-02-07', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-03-07', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-04-04', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-05-02', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-06-06', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-07-03', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-08-01', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-09-05', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-10-03', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-11-07', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2025-12-05', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  // 2026
+  { date: '2026-01-09', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-02-06', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-03-06', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-04-03', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-05-01', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-06-05', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-07-02', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-08-07', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-09-04', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-10-02', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-11-06', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+  { date: '2026-12-04', label: 'NFP', detail: 'NONFARM PAYROLLS' },
+];
+
 // Convert to timestamp-based array
 export const MACRO_EVENTS = [
   ...FOMC_DATES,
   ...CPI_DATES,
+  ...NFP_DATES,
 ].map(e => ({
   t: new Date(e.date + 'T14:30:00Z').getTime(), // approximate release time
+  date: e.date,
   label: e.label,
   detail: e.detail,
 })).sort((a, b) => a.t - b.t);
