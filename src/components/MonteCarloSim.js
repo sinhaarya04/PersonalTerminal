@@ -145,6 +145,7 @@ const S = {
   }),
 };
 
+// eslint-disable-next-line no-unused-vars
 const BAND_COLORS = [
   { label: '5th - 95th', fill: 'rgba(255,140,0,0.08)', stroke: '#ff8c00' },
   { label: '25th - 75th', fill: 'rgba(255,140,0,0.15)', stroke: '#ff8c00' },
