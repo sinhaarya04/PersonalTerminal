@@ -12,6 +12,7 @@
     { "source": "/polymarket/(.*)", "destination": "/api/polymarket?path=/$1" },
     { "source": "/sec/(.*)", "destination": "/api/sec?path=/$1" },
     { "source": "/worldbank/(.*)", "destination": "/api/worldbank?path=/$1" },
+    { "source": "/analytics/(.*)", "destination": "https://ex-terminal-analytics.fly.dev/$1" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
