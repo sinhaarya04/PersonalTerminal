@@ -39,7 +39,20 @@ YAHOO_QS_HOSTS = [
     "https://query2.finance.yahoo.com/v10/finance/quoteSummary/{ticker}",
 ]
 UA = {"User-Agent": "Mozilla/5.0"}
+# A real browser UA is required for the crumb/cookie handshake below.
+BROWSER_UA = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                  "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
+}
 RF = 0.02  # annual risk-free rate for Sharpe/Sortino
+
+# Cached Yahoo auth session (cookies + crumb). quoteSummary now gates
+# fundamentals behind a rotating crumb, so we handshake once and reuse.
+_YF = {"crumb": None, "cookies": None, "ts": 0.0, "fail_ts": 0.0}
+_YF_TTL = 1800.0    # refresh a good crumb every 30 min
+_YF_FAIL_TTL = 600.0  # after a failed handshake, don't retry for 10 min
+                      # (Yahoo blocks datacenter IPs with 429 on the crumb
+                      #  endpoint; caching the failure keeps panels fast)
 
 
 # ---------------------------------------------------------------------------
@@ -83,46 +96,96 @@ async def fetch_closes(ticker: str, rng: str = "2y") -> list:
     return (await fetch_ohlcv(ticker, rng))["close"]
 
 
+async def _yahoo_auth(force: bool = False):
+    """Return (cookies_dict, crumb) for Yahoo, handshaking + caching as needed."""
+    import time
+    if not force and _YF["crumb"] and (time.time() - _YF["ts"]) < _YF_TTL:
+        return _YF["cookies"], _YF["crumb"]
+    if not force and (time.time() - _YF["fail_ts"]) < _YF_FAIL_TTL:
+        raise RuntimeError("Yahoo crumb recently unavailable (cached)")
+    def _valid(cr):
+        return cr and len(cr) <= 20 and not any(ch.isspace() for ch in cr) and "<" not in cr
+
+    crumb = None
+    cookies = {}
+    last = ""
+    async with httpx.AsyncClient(timeout=15, headers=BROWSER_UA, follow_redirects=True) as c:
+        # Warm up consent cookies from a few Yahoo surfaces.
+        for warm in ("https://fc.yahoo.com",
+                     "https://finance.yahoo.com/quote/AAPL",
+                     "https://guce.yahoo.com/consent"):
+            try:
+                await c.get(warm)
+            except Exception:
+                pass
+        for host in ("https://query1.finance.yahoo.com/v1/test/getcrumb",
+                     "https://query2.finance.yahoo.com/v1/test/getcrumb"):
+            for _ in range(2):
+                try:
+                    cr = await c.get(host)
+                    last = cr.text.strip()
+                    if cr.status_code == 200 and _valid(last):
+                        crumb = last
+                        break
+                except Exception as e:
+                    last = str(e)
+            if crumb:
+                break
+        cookies = dict(c.cookies)
+    if not crumb:
+        _YF["fail_ts"] = time.time()
+        raise RuntimeError(f"failed to obtain Yahoo crumb: {last[:40]!r}")
+    _YF.update(cookies=cookies, crumb=crumb, ts=time.time(), fail_ts=0.0)
+    return cookies, crumb
+
+
 async def fetch_fundamentals(ticker: str) -> dict:
-    """Best-effort fundamentals via Yahoo quoteSummary. Returns {} on failure."""
+    """Fundamentals via Yahoo quoteSummary (crumb-authenticated). {} on failure."""
     modules = "summaryDetail,defaultKeyStatistics,financialData"
-    for host in YAHOO_QS_HOSTS:
+    for attempt in range(2):  # retry once with a fresh crumb on 401
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                r = await client.get(host.format(ticker=ticker),
-                                     params={"modules": modules}, headers=UA)
-                if r.status_code != 200:
-                    continue
-                res = (r.json().get("quoteSummary") or {}).get("result")
-                if not res:
-                    continue
-                d = res[0]
-                sd = d.get("summaryDetail", {}) or {}
-                ks = d.get("defaultKeyStatistics", {}) or {}
-                fd = d.get("financialData", {}) or {}
-
-                def raw(node, key):
-                    v = (node.get(key) or {})
-                    return v.get("raw") if isinstance(v, dict) else None
-
-                def pct(x):
-                    return x * 100 if x is not None else None
-
-                return {
-                    "pe": raw(sd, "trailingPE"),
-                    "pb": raw(ks, "priceToBook"),
-                    "roe": pct(raw(fd, "returnOnEquity")),
-                    "debt_equity": raw(fd, "debtToEquity"),
-                    "revenue_growth": pct(raw(fd, "revenueGrowth")),
-                    "margin": pct(raw(fd, "profitMargins")),
-                    "beta": raw(sd, "beta") or raw(ks, "beta"),
-                    "market_cap": raw(sd, "marketCap"),
-                    "fcf": raw(fd, "freeCashflow"),
-                    "shares": raw(ks, "sharesOutstanding"),
-                    "price": raw(fd, "currentPrice"),
-                }
+            cookies, crumb = await _yahoo_auth(force=(attempt == 1))
         except Exception:
-            continue
+            return {}
+        for host in YAHOO_QS_HOSTS:
+            try:
+                async with httpx.AsyncClient(timeout=15, headers=BROWSER_UA, cookies=cookies) as client:
+                    r = await client.get(host.format(ticker=ticker),
+                                         params={"modules": modules, "crumb": crumb})
+                    if r.status_code in (401, 403):
+                        break  # crumb stale -> break to outer loop, refresh
+                    if r.status_code != 200:
+                        continue
+                    res = (r.json().get("quoteSummary") or {}).get("result")
+                    if not res:
+                        continue
+                    d = res[0]
+                    sd = d.get("summaryDetail", {}) or {}
+                    ks = d.get("defaultKeyStatistics", {}) or {}
+                    fd = d.get("financialData", {}) or {}
+
+                    def raw(node, key):
+                        v = (node.get(key) or {})
+                        return v.get("raw") if isinstance(v, dict) else None
+
+                    def pct(x):
+                        return x * 100 if x is not None else None
+
+                    return {
+                        "pe": raw(sd, "trailingPE"),
+                        "pb": raw(ks, "priceToBook"),
+                        "roe": pct(raw(fd, "returnOnEquity")),
+                        "debt_equity": raw(fd, "debtToEquity"),
+                        "revenue_growth": pct(raw(fd, "revenueGrowth")),
+                        "margin": pct(raw(fd, "profitMargins")),
+                        "beta": raw(sd, "beta") or raw(ks, "beta"),
+                        "market_cap": raw(sd, "marketCap"),
+                        "fcf": raw(fd, "freeCashflow"),
+                        "shares": raw(ks, "sharesOutstanding"),
+                        "price": raw(fd, "currentPrice"),
+                    }
+            except Exception:
+                continue
     return {}
 
 
