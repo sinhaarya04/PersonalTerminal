@@ -16,6 +16,9 @@ are registered on every route to be safe.
 """
 
 import math
+import os
+import asyncio
+import time
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -45,6 +48,14 @@ BROWSER_UA = {
                   "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36"
 }
 RF = 0.02  # annual risk-free rate for Sharpe/Sortino
+
+# Financial Modeling Prep — primary fundamentals source (works from any IP,
+# unlike Yahoo quoteSummary which 429-blocks datacenter IPs). Key is a Fly
+# secret; falls back to Yahoo crumb auth when unset.
+FMP_KEY = os.environ.get("FMP_KEY", "")
+FMP = "https://financialmodelingprep.com/stable"
+_FUND_CACHE = {}     # ticker -> (fundamentals dict, ts)
+_FUND_TTL = 3600.0   # cache fundamentals 1h to protect the 250/day free quota
 
 # Cached Yahoo auth session (cookies + crumb). quoteSummary now gates
 # fundamentals behind a rotating crumb, so we handshake once and reuse.
@@ -139,7 +150,78 @@ async def _yahoo_auth(force: bool = False):
     return cookies, crumb
 
 
+async def _fmp_get(client, path, symbol, extra=""):
+    try:
+        url = f"{FMP}/{path}?symbol={symbol}{extra}&apikey={FMP_KEY}"
+        r = await client.get(url)
+        if r.status_code != 200:
+            return None
+        j = r.json()
+        if isinstance(j, list):
+            return j[0] if j else None
+        if isinstance(j, dict) and "Error Message" not in j:
+            return j
+    except Exception:
+        pass
+    return None
+
+
+async def fetch_fundamentals_fmp(ticker: str) -> dict:
+    """Fundamentals via Financial Modeling Prep (stable API)."""
+    async with httpx.AsyncClient(timeout=15, headers=UA) as c:
+        prof, rat, km, gro, cf = await asyncio.gather(
+            _fmp_get(c, "profile", ticker),
+            _fmp_get(c, "ratios-ttm", ticker),
+            _fmp_get(c, "key-metrics-ttm", ticker),
+            _fmp_get(c, "financial-growth", ticker, "&limit=1"),
+            _fmp_get(c, "cash-flow-statement", ticker, "&limit=1"),
+        )
+
+    def g(o, k):
+        return o.get(k) if isinstance(o, dict) else None
+
+    def pct(x):
+        return x * 100 if isinstance(x, (int, float)) else None
+
+    prof = prof or {}; rat = rat or {}; km = km or {}; gro = gro or {}; cf = cf or {}
+    price = g(prof, "price")
+    mcap = g(prof, "marketCap") or g(km, "marketCap")
+    shares = (mcap / price) if (mcap and price) else None
+    return {
+        "pe": g(rat, "priceToEarningsRatioTTM"),
+        "pb": g(rat, "priceToBookRatioTTM"),
+        "roe": pct(g(km, "returnOnEquityTTM")),
+        "debt_equity": pct(g(rat, "debtToEquityRatioTTM")),
+        "revenue_growth": pct(g(gro, "revenueGrowth")),
+        "margin": pct(g(rat, "netProfitMarginTTM")),
+        "beta": g(prof, "beta"),
+        "market_cap": mcap,
+        "fcf": g(cf, "freeCashFlow"),
+        "shares": shares,
+        "price": price,
+    }
+
+
 async def fetch_fundamentals(ticker: str) -> dict:
+    """Fundamentals with 1h cache: FMP first, Yahoo crumb as fallback."""
+    hit = _FUND_CACHE.get(ticker)
+    if hit and (time.time() - hit[1]) < _FUND_TTL:
+        return hit[0]
+
+    data = {}
+    if FMP_KEY:
+        fmp = await fetch_fundamentals_fmp(ticker)
+        if fmp.get("pe") is not None or fmp.get("market_cap") is not None:
+            data = fmp
+    if not data:
+        data = await fetch_fundamentals_yahoo(ticker)
+
+    if data:
+        _FUND_CACHE[ticker] = (data, time.time())
+    return data
+
+
+async def fetch_fundamentals_yahoo(ticker: str) -> dict:
     """Fundamentals via Yahoo quoteSummary (crumb-authenticated). {} on failure."""
     modules = "summaryDetail,defaultKeyStatistics,financialData"
     for attempt in range(2):  # retry once with a fresh crumb on 401
