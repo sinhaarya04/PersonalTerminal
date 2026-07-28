@@ -741,7 +741,7 @@ function AppMain({ user }) {
             CLOSE
           </button>
           <span style={S.apiHint}>
-            FREE TIER: yahoo finance (always on) · polygon adds news + technicals
+            FREE TIER: yahoo finance (always on) · polygon adds live news
           </span>
         </div>
       )}
@@ -773,7 +773,7 @@ function AppMain({ user }) {
         </span>
         {!polygonKey && (
           <span style={{ ...S.statusItem, color: '#555555' }}>
-            · ADD POLYGON KEY FOR NEWS &amp; TECHNICALS
+            · ADD POLYGON KEY FOR LIVE NEWS
           </span>
         )}
         {isRateLimited && (

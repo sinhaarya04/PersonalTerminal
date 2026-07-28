@@ -328,7 +328,14 @@ def _stochastic(high, low, close, n=14, d_period=3):
     for i in range(n - 1, len(close)):
         hh = np.max(high[i - n + 1:i + 1]); ll = np.min(low[i - n + 1:i + 1])
         k[i] = 100 * (close[i] - ll) / (hh - ll) if hh > ll else 50.0
-    d = _rolling_mean(k, d_period)
+    # %D is the SMA of %K. Compute nan-safe (k has leading NaNs, and a
+    # cumsum-based rolling mean would propagate them across the whole array).
+    d = np.full(len(close), np.nan)
+    for i in range(len(close)):
+        window = k[max(0, i - d_period + 1):i + 1]
+        window = window[~np.isnan(window)]
+        if len(window) == d_period:
+            d[i] = float(np.mean(window))
     return k, d
 
 
