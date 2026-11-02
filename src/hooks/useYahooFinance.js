@@ -15,11 +15,11 @@ function yfCacheSet(k, v, ttlMs = 5 * 60 * 1000) {
 }
 
 // ── Core fetch — routes through /yf dev-server proxy ─────────────────────────
-async function yfFetch(path, params = {}) {
+async function yfFetch(path, params = {}, { fresh = false } = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `/yf${path}${qs ? '?' + qs : ''}`;
 
-  const cached = yfCacheGet(url);
+  const cached = fresh ? null : yfCacheGet(url);
   if (cached) return cached;
 
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
@@ -146,8 +146,10 @@ async function fetchQuoteFromChartLive(ticker) {
     regularMarketDayHigh: meta.regularMarketDayHigh ?? null,
     regularMarketDayLow: meta.regularMarketDayLow ?? null,
     regularMarketVolume: meta.regularMarketVolume ?? null,
+    regularMarketTime: meta.regularMarketTime ?? null,
+    exchangeTimezoneName: meta.exchangeTimezoneName ?? null,
   };
-  yfCacheSet(liveKey, q, 20 * 1000); // 20s TTL for live polling
+  yfCacheSet(liveKey, q, 5 * 1000); // 5s TTL — must stay under the 10s poll
   return q;
 }
 
@@ -225,12 +227,12 @@ export async function fetchEarningsData(symbols) {
 }
 
 // ── Historical OHLCV chart ────────────────────────────────────────────────────
-export async function fetchYFChart(ticker, range = '2y', interval = '1d') {
+export async function fetchYFChart(ticker, range = '2y', interval = '1d', opts = {}) {
   const data = await yfFetch(`/v8/finance/chart/${encodeURIComponent(ticker)}`, {
     interval,
     range,
     includePrePost: false,
-  });
+  }, opts);
   const result = data?.chart?.result?.[0];
   if (!result) return null;
 

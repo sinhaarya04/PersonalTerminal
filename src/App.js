@@ -25,6 +25,7 @@ import IpoCalendar from './components/IpoCalendar';
 import WatchlistSidebar from './components/WatchlistSidebar';
 import { setRateLimitCallback } from './utils/rateLimiter';
 import { isMarketOpen } from './utils/marketHours';
+import { applyLiveQuote, quoteIsPastLastBar } from './utils/liveBars';
 import PriceChart from './components/PriceChart';
 import {
   fetchYFChart,
@@ -480,6 +481,25 @@ function AppMain({ user }) {
   // ── Fetch watchlist + main ticker quotes ──────────────────────────────────
   const tickerForPoll = useRef(ticker);
   tickerForPoll.current = ticker;
+  const intervalForPoll = useRef(chartInterval);
+  intervalForPoll.current = chartInterval;
+  const barsForPoll = useRef(chartBars);
+  barsForPoll.current = chartBars;
+  const barsRefreshing = useRef(false);
+
+  // Refetch intraday bars once the live quote has moved into a bar we don't have yet
+  const refreshIntradayBars = useCallback(async (sym, intv) => {
+    if (barsRefreshing.current) return;
+    barsRefreshing.current = true;
+    try {
+      const res = await fetchYFChart(sym, '60d', intv, { fresh: true });
+      if (res?.bars?.length && tickerForPoll.current === sym && intervalForPoll.current === intv) {
+        setChartBars(res.bars);
+      }
+    } catch { /* keep current bars */ } finally {
+      barsRefreshing.current = false;
+    }
+  }, []);
 
   const fetchAllQuotes = useCallback(async () => {
     try {
@@ -501,6 +521,14 @@ function AppMain({ user }) {
           high: mainQ.regularMarketDayHigh ?? prev.high,
           low: mainQ.regularMarketDayLow ?? prev.low,
         } : prev);
+
+        // Keep the newest candle moving with the live price
+        const intv = intervalForPoll.current;
+        if (isMarketOpen() && quoteIsPastLastBar(barsForPoll.current, mainQ, intv)) {
+          refreshIntradayBars(tickerForPoll.current, intv);
+        } else {
+          setChartBars(prev => applyLiveQuote(prev, mainQ, intv));
+        }
       }
 
       // Update watchlist prices
@@ -519,7 +547,7 @@ function AppMain({ user }) {
     } catch {
       setIsLive(false);
     }
-  }, []);
+  }, [refreshIntradayBars]);
 
   fetchAllQuotesRef.current = fetchAllQuotes;
 
@@ -528,11 +556,11 @@ function AppMain({ user }) {
     fetchAllQuotes();
   }, [fetchAllQuotes]);
 
-  // Poll every 30s during market hours
+  // Poll every 10s during market hours
   useEffect(() => {
     const id = setInterval(() => {
       if (isMarketOpen()) fetchAllQuotes();
-    }, 30000);
+    }, 10000);
     return () => clearInterval(id);
   }, [fetchAllQuotes]);
 

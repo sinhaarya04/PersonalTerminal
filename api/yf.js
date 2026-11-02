@@ -78,7 +78,9 @@ module.exports = async function handler(req, res) {
 
     const contentType = response.headers['content-type'] || 'application/json';
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    // Live quotes (range=1d) and intraday bars go stale in seconds, so the edge only holds them briefly
+    const live = params.range === '1d' || /^(\d+m|1h)$/.test(params.interval || '');
+    res.setHeader('Cache-Control', live ? 's-maxage=5' : 's-maxage=60, stale-while-revalidate=300');
     res.status(response.status).send(response.body);
   } catch (err) {
     res.status(502).json({ error: err.message });
